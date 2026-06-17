@@ -1,0 +1,1768 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <title>TomOS Astra · Command Bridge</title>
+  <meta name="description" content="Cycle-aware scheduling, deep-work telemetry, and strategic project control in one personal operating system." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    /* ========================================================================
+       ASTRA — Instrument-grade visual system
+       Arterial red on polished Italian marble. Aerospace precision, editorial
+       restraint. Same structure as before; typography, depth and motion
+       refined to the level the brief actually asks for.
+       ======================================================================== */
+    :root{
+      --bg:#f4f1ec; --fg:#0d0d0e; --muted:#6b6660; --muted-2:#9a9388;
+      --border:#1f1d1c1a; --border-2:#1f1d1c2e; --card:#fbfaf7;
+      --primary:#b3261e; --primary-2:#7a1a14; --primary-soft:#b3261e14;
+      --ink:#161413; --accent:#efe9df;
+      --shadow-1:0 1px 2px rgba(13,13,14,.04), 0 1px 1px rgba(13,13,14,.03);
+      --shadow-2:0 8px 24px rgba(13,13,14,.07), 0 2px 6px rgba(13,13,14,.05);
+      --shadow-3:0 24px 60px rgba(13,13,14,.16), 0 6px 16px rgba(13,13,14,.08);
+      --ease:cubic-bezier(.2,.7,.2,1);
+      --r:1px; /* radius kept at instrument-panel zero/near-zero, see note below */
+    }
+    *{box-sizing:border-box}
+    *:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    body{
+      min-height:100vh;
+      background-image:
+        radial-gradient(ellipse 900px 500px at 12% -10%, #00000006, transparent 60%),
+        radial-gradient(ellipse 700px 480px at 100% 0%, #00000005, transparent 55%),
+        radial-gradient(ellipse 1100px 700px at 50% 120%, #00000005, transparent 60%);
+      background-attachment:fixed;
+    }
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+    button:active{transform:translateY(1px)}
+    .display{font-family:"Playfair Display",serif;letter-spacing:-.012em}
+    .mono{font-family:"DM Mono",ui-monospace,monospace}
+    .hairline{font-family:"DM Mono",monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.22em;color:var(--muted)}
+    .grid-bg{
+      background-image:
+        linear-gradient(to right, #00000006 1px, transparent 1px),
+        linear-gradient(to bottom, #00000006 1px, transparent 1px);
+      background-size:48px 48px;
+    }
+    ::-webkit-scrollbar{width:9px;height:9px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:#0d0d0e22;border-radius:99px}
+    ::-webkit-scrollbar-thumb:hover{background:#0d0d0e3a}
+
+    .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+    aside{position:sticky;top:0;height:100vh;border-right:1px solid var(--border);background:var(--card);display:flex;flex-direction:column;z-index:40}
+    .brand{padding:18px 20px;border-bottom:1px solid var(--border)}
+    .brand h1{margin:0;font-family:"Playfair Display",serif;font-size:22px;font-weight:600}
+    .brand h1 em{color:var(--primary);font-style:normal}
+    nav.side{padding:10px;display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
+    nav.side button{display:flex;align-items:center;gap:10px;padding:11px 12px;border-left:2px solid transparent;text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;transition:.18s var(--ease)}
+    nav.side button:hover{background:#0000000a;color:var(--fg)}
+    nav.side button.active{border-color:var(--primary);background:var(--accent);color:var(--primary)}
+    .side-foot{border-top:1px solid var(--border);padding:14px;font-size:11px;color:var(--muted)}
+    .side-foot .dot{display:inline-block;width:6px;height:6px;background:var(--primary);border-radius:99px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 3px var(--primary-soft)}
+    .side-foot .dot.idle{background:var(--muted-2);box-shadow:none}
+
+    header.top{position:sticky;top:0;height:60px;background:#f4f1ecf2;backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;z-index:30;gap:14px}
+    header.top .status{display:flex;align-items:center;gap:8px}
+    header.top .right{margin-left:auto;display:flex;align-items:center;gap:14px}
+    .ctx-select{position:relative}
+    .ctx-select select{
+      font:inherit;font-family:"DM Mono",monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.18em;
+      color:var(--muted);background:transparent;border:1px solid var(--border);padding:7px 26px 7px 10px;
+      appearance:none;-webkit-appearance:none;cursor:pointer;transition:.18s var(--ease)
+    }
+    .ctx-select select:hover{border-color:var(--primary);color:var(--fg)}
+    .ctx-select::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--muted);pointer-events:none}
+
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--border);background:transparent;font-size:12px;font-weight:600;letter-spacing:.03em;transition:.16s var(--ease)}
+    .btn:hover{background:#0000000a;border-color:var(--border-2)}
+    .btn.primary{background:var(--ink);color:#f4f1ec;border-color:var(--ink)}
+    .btn.primary:hover{background:var(--primary);border-color:var(--primary)}
+    .btn.danger:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btn.sm{padding:6px 10px;font-size:11px}
+    .btn.ghost{border-color:transparent}
+    .btn.ghost:hover{border-color:var(--border)}
+    .btn[disabled]{opacity:.4;cursor:default;pointer-events:none}
+    .menu-toggle{display:none}
+
+    main{padding:28px 32px 80px;max-width:1500px;margin:0 auto;width:100%}
+    .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:26px;border-bottom:1px solid #0d0d0e22;margin-bottom:26px;flex-wrap:wrap}
+    .hero h2{font-family:"Playfair Display",serif;font-size:44px;line-height:1.05;margin:8px 0 12px;font-weight:600;letter-spacing:-.01em;max-width:680px}
+    .hero .greet-row{display:flex;align-items:flex-start;gap:10px}
+    .greet-refresh{opacity:.35;font-size:13px;margin-top:14px;transition:.2s var(--ease)}
+    .greet-refresh:hover{opacity:1;color:var(--primary);transform:rotate(70deg)}
+    .hero p{margin:0;color:var(--muted);font-size:13.5px;max-width:520px;line-height:1.55}
+    .clock{text-align:right}
+    .clock .t{font-family:"DM Mono",monospace;font-size:36px;font-weight:300;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+    .layout{display:grid;grid-template-columns:1.4fr .6fr;gap:18px}
+    .panel{border:1px solid var(--border);background:var(--card);box-shadow:var(--shadow-1);transition:box-shadow .2s var(--ease)}
+    .panel header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+    .panel header h3{margin:4px 0 0;font-family:"Playfair Display",serif;font-size:21px;font-weight:600}
+    .row{display:grid;grid-template-columns:64px 4px 1fr auto;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);transition:.18s var(--ease)}
+    .row:last-child{border-bottom:0}
+    .row:hover{background:#00000007;transform:translateX(3px)}
+    .row .tm{font-family:"DM Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted)}
+    .row .bar{background:#0d0d0e22}
+    .row .bar.p{background:var(--primary)}
+    .row .bar.d{background:var(--ink)}
+    .row .title{font-size:14px;font-weight:600}
+    .row .meta{font-family:"DM Mono",monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:3px}
+    .row .del{opacity:0;transition:.15s}
+    .row:hover .del{opacity:.5}
+    .row .del:hover{opacity:1;color:var(--primary)}
+    .telemetry{background:var(--ink);color:#f4f1ec;padding:22px;border:1px solid var(--ink);box-shadow:var(--shadow-2);position:relative;overflow:hidden}
+    .telemetry::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,#ffffff08,transparent 40%);pointer-events:none}
+    .telemetry .big{font-family:"Playfair Display",serif;font-size:52px;line-height:1;font-weight:600}
+    .telemetry .lbl{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#f4f1ec90}
+    .chart{height:130px;margin:18px 0 12px}
+    .telemetry .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid #ffffff1c;padding-top:14px;text-align:center}
+    .telemetry .grid3 .v{font-family:"DM Mono",monospace;font-size:14px}
+    .task{display:flex;gap:14px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);transition:.15s var(--ease)}
+    .task:hover{background:#00000006}
+    .task:last-child{border-bottom:0}
+    .chk{width:18px;height:18px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s var(--ease)}
+    .chk:hover{border-color:var(--primary)}
+    .chk.on{background:var(--primary);border-color:var(--primary);color:#fff}
+    .chk.on::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);margin-top:-2px}
+    .task.done .title{text-decoration:line-through;color:var(--muted)}
+    .pri{font-family:"DM Mono",monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+    .pri.crit{color:var(--primary)}
+    .rail{display:flex;flex-direction:column;gap:18px}
+    .progress{height:4px;background:#00000010;margin-top:14px;overflow:hidden}
+    .progress span{display:block;height:100%;background:var(--primary);transition:width .4s var(--ease)}
+    .modal{position:fixed;inset:0;background:#0d0d0eb3;backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:16px;z-index:90;animation:f .2s ease}
+    .modal.open{display:flex}
+    .modal .box{width:100%;max-width:520px;background:var(--card);border:1px solid var(--border);padding:26px;animation:s .25s var(--ease);box-shadow:var(--shadow-3)}
+    .modal h4{font-family:"Playfair Display",serif;font-size:27px;margin:6px 0 0;font-weight:600}
+    .modal label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-top:18px}
+    .modal input,.modal select,.modal textarea{width:100%;padding:11px 12px;border:1px solid var(--border);background:#fff;margin-top:8px;font:inherit;font-size:13px;transition:.15s var(--ease)}
+    .modal input:focus,.modal select:focus,.modal textarea:focus{border-color:var(--primary);outline:none}
+    .modal textarea{min-height:96px;resize:vertical}
+    .modal .close-x{font-size:20px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;transition:.15s var(--ease)}
+    .modal .close-x:hover{color:var(--primary);transform:rotate(90deg)}
+    .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+    .seg .btn{justify-content:center}
+    .seg .btn.on{background:var(--ink);color:#f4f1ec;border-color:var(--ink)}
+    @keyframes f{from{opacity:0}to{opacity:1}}
+    @keyframes s{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
+    svg.spark{width:100%;height:100%;display:block;color:var(--primary)}
+    .conflict-diff{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .conflict-diff .side{border:1px solid var(--border);padding:12px;font-size:12px}
+    .conflict-diff .side b{display:block;font-family:"DM Mono",monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:8px}
+    .schedule-add{display:flex;gap:6px;padding:12px 20px;border-top:1px solid var(--border);flex-wrap:wrap}
+    .schedule-add input{flex:1;min-width:90px;padding:8px 9px;border:1px solid var(--border);font:inherit;font-size:12px;background:#fff}
+    .toast-wrap{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:99}
+    .toast{background:var(--ink);color:#f4f1ec;padding:13px 18px;font-size:12.5px;box-shadow:var(--shadow-3);max-width:320px;animation:s .22s var(--ease);border-left:3px solid var(--primary)}
+    /* Timetable */
+    .ttable-wrap{overflow:auto}
+    table.ttable{width:100%;border-collapse:collapse;font-size:12.5px}
+    table.ttable th{background:var(--ink);color:#f4f1ec;font-weight:600;text-align:center;padding:11px 10px;font-size:12.5px;white-space:nowrap}
+    table.ttable th:first-child{text-align:left}
+    table.ttable td{border-bottom:1px solid var(--border);padding:11px 12px;text-align:center;vertical-align:middle}
+    table.ttable td:first-child{font-family:"DM Mono",monospace;font-size:10.5px;color:var(--muted);text-align:left;white-space:nowrap;background:#0000000a}
+    table.ttable tr.break td:not(:first-child){background:#1f1d1c;color:#f4f1ec90;font-style:italic}
+    table.ttable tr.lunch td:not(:first-child){background:var(--accent)}
+    table.ttable td input{width:100%;border:1px solid var(--border);padding:6px 7px;font:inherit;font-size:12px;background:#fff;text-align:center}
+    table.ttable tr.break td input,table.ttable tr.lunch td input{background:#fff;color:var(--fg);font-style:normal}
+    table.ttable td .ttable-del{display:block;margin-top:6px;opacity:.5;font-size:10px}
+    table.ttable td .ttable-del:hover{opacity:1;color:var(--primary)}
+    .ttable-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:18px 20px;border-top:1px solid var(--border)}
+    .ttable-note{border:1px solid var(--border);padding:10px 12px;font-size:11.5px;line-height:1.5;background:#fff;position:relative}
+    .ttable-note input{width:100%;border:0;font:inherit;font-size:11.5px;background:transparent;padding:0}
+    .ttable-note .ttable-del{position:absolute;top:6px;right:8px}
+    /* Focus active timer */
+    .focus-bar{position:sticky;top:60px;background:var(--ink);color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:25;margin-bottom:0;display:none}
+    .focus-bar.active{display:flex}
+    .focus-bar .timer{font-family:"DM Mono",monospace;font-size:24px;font-variant-numeric:tabular-nums}
+    .focus-bar .actions button{color:#fff;border-color:#fff;margin-left:10px}
+    @media (max-width:900px){
+      .app{grid-template-columns:1fr}
+      aside{position:fixed;left:0;top:0;width:240px;transform:translateX(-100%);transition:.25s var(--ease)}
+      aside.open{transform:none;box-shadow:0 0 0 1000px #0000007a}
+      .menu-toggle{display:inline-flex}
+      .layout{grid-template-columns:1fr}
+      main{padding:22px 18px 80px}
+      .hero h2{font-size:32px}
+      .clock .t{font-size:26px}
+      .conflict-diff{grid-template-columns:1fr}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div class="brand">
+      <h1>TomOS <em>Astra</em></h1>
+      <div class="hairline" style="margin-top:4px">Personal command system</div>
+    </div>
+    <nav class="side" id="nav"></nav>
+    <div class="side-foot">
+      <div><span class="dot" id="deviceDot"></span><b id="deviceModeLabel" style="color:var(--fg)">Public Device</b></div>
+      <div class="mono" id="deviceModeDesc" style="font-size:10px;margin-top:4px">Ephemeral · clears on tab close</div>
+      <button class="btn sm" id="deviceModeToggle" onclick="toggleDeviceMode()" style="margin-top:10px;width:100%;justify-content:center">Switch to Trusted</button>
+    </div>
+  </aside>
+
+  <div>
+    <header class="top">
+      <button class="btn sm menu-toggle" onclick="toggleNav()" aria-label="Menu">☰</button>
+      <div class="status">
+        <span class="hairline" style="margin-left:8px">System status</span>
+        <span id="syncIndicator" style="width:6px;height:6px;background:var(--primary);border-radius:99px;display:inline-block"></span>
+        <span class="mono" id="syncStatus" style="font-size:10px;text-transform:uppercase;letter-spacing:.2em">Operational</span>
+      </div>
+      <div class="right">
+        <div class="ctx-select">
+          <select id="contextSelect" onchange="setContext(this.value)" aria-label="Operating context" title="Operating context — drives which greeting register is eligible"></select>
+        </div>
+        <span class="hairline" id="cycle">Cycle Day 3</span>
+        <button class="btn sm" id="authButton" onclick="handleAuthClick()">◎ Google sync</button>
+        <button class="btn sm ghost" id="signOutButton" onclick="signOut()" style="display:none">Disconnect</button>
+      </div>
+    </header>
+    <!-- Focus active bar -->
+    <div class="focus-bar" id="focusBar">
+      <span class="mono" id="focusBarLabel">Focusing on Clinical Research</span>
+      <span class="timer" id="focusTimer">00:00</span>
+      <div class="actions">
+        <button class="btn sm" onclick="pauseFocus()">⏸ Pause</button>
+        <button class="btn sm" onclick="resumeFocus()">▶ Resume</button>
+        <button class="btn sm" onclick="stopFocus()">⏹ Stop</button>
+        <button class="btn sm" onclick="logInterruptionUI()">☕ Interruption</button>
+      </div>
+    </div>
+
+    <main class="grid-bg">
+      <section id="view-command" class="view"></section>
+      <section id="view-schedule" class="view" style="display:none"></section>
+      <section id="view-tasks" class="view" style="display:none"></section>
+      <section id="view-focus" class="view" style="display:none"></section>
+      <section id="view-projects" class="view" style="display:none"></section>
+      <section id="view-analytics" class="view" style="display:none"></section>
+      <section id="view-horario" class="view" style="display:none"></section>
+      <section id="view-settings" class="view" style="display:none"></section>
+    </main>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- Modals -->
+<div class="modal" id="modal-focus" onclick="if(event.target===this)closeModal('focus')">
+  <div class="box">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="hairline">Session protocol</div><h4>Initiate deep work</h4></div>
+      <button class="close-x" onclick="closeModal('focus')">×</button>
+    </div>
+    <label>Subject / Project<input id="focusSubject" placeholder="e.g. Clinical Research" list="projectList" /><datalist id="projectList"></datalist></label>
+    <label>Focus duration</label>
+    <div class="seg" id="duration">
+      <button class="btn" data-min="25">25</button>
+      <button class="btn on" data-min="45">45</button>
+      <button class="btn" data-min="90">90</button>
+      <button class="btn" data-min="0">∞</button>
+    </div>
+    <label>Session intent<textarea id="focusIntent" placeholder="Define the outcome before you begin."></textarea></label>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:18px;padding:13px" onclick="startFocusSession()">⏱ Begin session</button>
+  </div>
+</div>
+
+<div class="modal" id="modal-task" onclick="if(event.target===this)closeModal('task')">
+  <div class="box" style="max-width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="hairline">Objective entry</div><h4>Create task</h4></div>
+      <button class="close-x" onclick="closeModal('task')">×</button>
+    </div>
+    <label>Title<input id="newTitle" placeholder="Objective title" /></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label>Project<input id="newProject" placeholder="e.g. Research" list="projectList" /></label>
+      <label>Priority<select id="newPri"><option>Critical</option><option>High</option><option>Routine</option></select></label>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label>Start date<input type="date" id="newStartDate" /></label>
+      <label>Due date<input type="date" id="newDueDate" /></label>
+    </div>
+    <label>Recurrence rule <span class="hairline">e.g., FREQ=WEEKLY;INTERVAL=2;BYDAY=WE</span>
+      <input id="newRecurrence" placeholder="FREQ=WEEKLY;INTERVAL=2;BYDAY=WE" /></label>
+    <label>Exclude cycle days <span class="hairline">comma separated</span>
+      <input id="newExcludeCycle" placeholder="Day 0,Day 5" /></label>
+    <label>Notes<textarea id="newNotes" placeholder="Details, subtasks..."></textarea></label>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:18px;padding:13px" onclick="addTask()">＋ Commit objective</button>
+  </div>
+</div>
+
+<div class="modal" id="modal-cycle" onclick="if(event.target===this)closeModal('cycle')">
+  <div class="box">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="hairline">Academic Cycle Engine</div><h4>Manage cycles</h4></div>
+      <button class="close-x" onclick="closeModal('cycle')">×</button>
+    </div>
+    <label>Cycle structure (comma separated)<input id="cycleDef" placeholder="Day 0,Day 1,Day 2,Day 3,Day 4" /></label>
+    <label>Reference date<input type="date" id="cycleRefDate" /></label>
+    <label>Reference cycle day <span class="hairline">must exactly match one entry above</span><input id="cycleRefDay" placeholder="Day 0" list="cycleDayList" /><datalist id="cycleDayList"></datalist></label>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:12px" onclick="updateCycle()">Save cycle</button>
+    <hr style="border-color:var(--border);margin:16px 0"/>
+    <div class="hairline">Override editor</div>
+    <div id="overrideEditor" style="max-height:160px;overflow:auto;margin-top:8px"></div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <input type="date" id="overrideDateInput" style="margin:0" />
+      <input id="overrideDayInput" placeholder="Day X" list="cycleDayList" style="margin:0" />
+      <button class="btn sm" onclick="addOverride()">＋ Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-project" onclick="if(event.target===this)closeModal('project')">
+  <div class="box">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="hairline">Strategic initiative</div><h4>New project</h4></div>
+      <button class="close-x" onclick="closeModal('project')">×</button>
+    </div>
+    <label>Name<input id="newProjectName" placeholder="e.g. Clinical Research Protocol" /></label>
+    <label>Description<textarea id="newProjectDesc" placeholder="What this project is, and why it matters."></textarea></label>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:18px;padding:13px" onclick="submitNewProject()">＋ Commit project</button>
+  </div>
+</div>
+
+<div class="modal" id="modal-conflict" onclick="if(event.target===this)return">
+  <div class="box" style="max-width:600px">
+    <div><div class="hairline">Sync conflict detected</div><h4>Two versions diverged</h4></div>
+    <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6">This device and your Google Drive copy were both modified since the last sync. Choose which version survives — the other will be overwritten. Nothing is deleted from Drive history, but local data not kept here will only remain if you export it first.</p>
+    <div class="conflict-diff">
+      <div class="side"><b>This device</b><div id="conflictLocalSummary" class="mono" style="font-size:11px"></div></div>
+      <div class="side"><b>Google Drive</b><div id="conflictRemoteSummary" class="mono" style="font-size:11px"></div></div>
+    </div>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px;padding:12px" onclick="resolveConflict('local')">Keep this device's version</button>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:8px;padding:12px" onclick="resolveConflict('remote')">Keep Drive's version</button>
+    <button class="btn ghost sm" style="width:100%;justify-content:center;margin-top:8px" onclick="resolveConflict('export')">Export both as files first, decide later</button>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   TOMOS ASTRA — COMPLETE PRODUCTION MONOLITH (v4)
+   Changes from v3: XSS-safe rendering, real token persistence, true
+   ephemeral/public storage split, validated OAuth state, conflict-aware
+   Drive sync, validated import, weighted multilingual greeting engine,
+   manual operating-context selector, editable schedule, fixed project
+   allocation matching, single-pass calendar occurrence computation.
+   ========================================================================== */
+
+// ---------- CONFIG & GLOBALS ----------
+const CLIENT_ID = '292485317329-tp2pof8clvlj58mfvje8mtfbmb4h395t.apps.googleusercontent.com';
+const DRIVE_FOLDER_NAME = 'TomOS Astra';
+const STATE_FILE_NAME = 'tomos-astra-state.json';
+const SCHEMA_VERSION = 4;
+
+let deviceMode = (localStorage.getItem('tomos.devicemode') === 'trusted') ? 'trusted' : 'public';
+let state = loadState();
+let accessToken = null, tokenExpiry = 0, driveFolderId = null, driveFileId = null;
+let activeView = 'command';
+let activeFocusSession = null; // { id, start, subject, targetMinutes, interruptions, elapsed, paused, timerInterval }
+let focusTimerInterval = null;
+
+// ---------- STORAGE ABSTRACTION ----------
+// Trusted devices persist to localStorage (survives closing the browser).
+// Public devices persist only to sessionStorage (survives a refresh, but
+// is wiped automatically when the tab/browser closes) so the "ephemeral"
+// promise in the sidebar is actually true rather than decorative.
+function activeStorage() { return deviceMode === 'trusted' ? localStorage : sessionStorage; }
+function storageGet(key) { try { return activeStorage().getItem(key); } catch { return null; } }
+function storageSet(key, val) { try { activeStorage().setItem(key, val); return true; } catch (e) { console.error('Storage write failed', e); return false; } }
+function storageRemove(key) { try { activeStorage().removeItem(key); } catch {} }
+function wipeAllLocalPersistence() {
+  ['tomos.astra.v3','tomos.token','tomos.token_expiry','tomos.driveFolderId','tomos.driveFileId'].forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+}
+// Defensive auto-wipe: even if something leaked into localStorage while in
+// public mode, closing the tab clears it for real.
+window.addEventListener('beforeunload', () => { if (deviceMode === 'public') wipeAllLocalPersistence(); });
+
+// ---------- HTML ESCAPING (XSS guard) ----------
+// Every piece of user-authored text (task titles, project names, focus
+// subjects, notes...) must pass through this before landing in innerHTML.
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+// ---------- TOASTS (replaces native alert() for non-blocking notices) ----------
+function showToast(msg, ms = 3400) {
+  const wrap = document.getElementById('toastWrap');
+  if (!wrap) return;
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, ms);
+}
+
+// ---------- DATA LOADING WITH VALIDATION + MIGRATION ----------
+function isValidStateShape(obj) {
+  return !!(obj && typeof obj === 'object'
+    && Array.isArray(obj.tasks) && Array.isArray(obj.projects) && Array.isArray(obj.focusSessions)
+    && obj.settings && typeof obj.settings === 'object'
+    && obj.cycle && typeof obj.cycle === 'object'
+    && obj.modules && typeof obj.modules === 'object');
+}
+
+function loadState() {
+  const stored = storageGet('tomos.astra.v3');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (!isValidStateShape(parsed)) { console.warn('Stored state failed validation — falling back to defaults'); return defaultState(); }
+      if (parsed.version !== SCHEMA_VERSION) return migrateState(parsed);
+      return parsed;
+    } catch (e) { console.warn('Corrupt stored state, resetting', e); }
+  }
+  return defaultState();
+}
+
+function defaultState() {
+  return {
+    version: SCHEMA_VERSION,
+    settings: { context: 'general' },
+    tasks: [],
+    projects: [],
+    schedule: [
+      { time:'08:00', title:'Molecular Biology', meta:'Auditorium B · Cycle Day 3', tone:'p' },
+      { time:'10:30', title:'Cardiovascular Systems', meta:'Lab 04 · Practical', tone:'d' },
+      { time:'14:00', title:'Research Protocol Review', meta:'Astra Project · Deep work', tone:'' },
+      { time:'16:00', title:'Biweekly Literature Synthesis', meta:'Recurs every 2nd Wednesday', tone:'' },
+    ],
+    cycle: { definition: ['Day 0','Day 1','Day 2','Day 3','Day 4'], refDate: '2025-06-16', refDay: 'Day 3' },
+    overrides: {},
+    focusSessions: [],
+    modules: { academicCycle: true, focusTracking: true, analytics: true },
+    timetable: defaultTimetable(),
+    meta: { lastModified: Date.now(), lastSyncTimestamp: 0 }
+  };
+}
+
+function defaultTimetable() {
+  return {
+    title: 'Horario 2026',
+    subtitle: 'T. Guevara Chacón · 10-1',
+    days: ['Lunes','Martes','Miércoles','Jueves','Viernes'],
+    rows: [
+      { time:'7:00–7:50 AM',        cells:['Portugués','Portugués','Portugués','Química','Español'], kind:'' },
+      { time:'7:50–8:40 AM',        cells:['Portugués','Portugués','Portugués','Expresión corporal y escénica','Español'], kind:'' },
+      { time:'8:40–9:25 AM',        cells:['','Español','Producción textual','Español','Profundización Ciencias sociales'], kind:'' },
+      { time:'9:25–10:10 AM',       cells:['Descanso','Descanso','Descanso','Descanso','Descanso'], kind:'break' },
+      { time:'10:10–11:00 AM',      cells:['Física','Deportes','Informática','Profundización Biología','Álgebra lineal'], kind:'' },
+      { time:'11:00–11:50 AM',      cells:['Física','Deportes','Informática','Español','Filosofía'], kind:'' },
+      { time:'11:50 AM–12:40 PM',   cells:['Cálculo diferencial','Química','Álgebra','Trigonometría','Química'], kind:'' },
+      { time:'12:40–1:25 PM',       cells:['Cálculo diferencial','Química','Ética y valores','Probabilidad',''], kind:'' },
+      { time:'1:25–2:10 PM',        cells:['Almuerzo','Almuerzo','Almuerzo','Almuerzo','Almuerzo'], kind:'lunch' },
+      { time:'2:10–3:05 PM',        cells:['Producción textual','Laboratorio de arte','Física','Filosofía','Economía y política'], kind:'' },
+    ],
+    notes: [
+      'MOLINU (Proyecto Liceísta de Naciones Unidas) — Miércoles, 3:05–5:00 PM',
+      'SAT Study — Jueves',
+      'Prep. ICFES — Martes',
+      'AP Stats — Miércoles',
+      'AP US Gov — Jueves',
+      'AP Biology — Viernes',
+    ]
+  };
+}
+
+function migrateState(old) {
+  if (!isValidStateShape(old)) { console.warn('Cannot migrate malformed state, using defaults'); return defaultState(); }
+  old.version = SCHEMA_VERSION;
+  old.modules = old.modules || { academicCycle: true, focusTracking: true, analytics: true };
+  old.overrides = old.overrides || {};
+  old.schedule = Array.isArray(old.schedule) ? old.schedule : [];
+  old.timetable = old.timetable && Array.isArray(old.timetable.rows) ? old.timetable : defaultTimetable();
+  old.settings = old.settings || {};
+  old.settings.context = old.settings.context || 'general';
+  delete old.settings.language; // retired: never actually drove any UI behaviour
+  delete old.settings.title; delete old.settings.surname; // retired: only fed an unreachable fallback greeting
+  delete old.settings.theme; // retired: single-option dropdown, TomOS is unitema
+  old.meta = old.meta || { lastModified: Date.now(), lastSyncTimestamp: 0 };
+  if (typeof old.meta.lastSyncTimestamp !== 'number') old.meta.lastSyncTimestamp = 0;
+  return old;
+}
+
+function saveState() {
+  state.meta = state.meta || {};
+  state.meta.lastModified = Date.now();
+  storageSet('tomos.astra.v3', JSON.stringify(state));
+}
+
+/* ==========================================================================
+   GREETING ENGINE — weighted, multilingual, context- and time-aware
+   ========================================================================== */
+const CONTEXTS = [
+  { key:'general',  label:'General' },
+  { key:'exam',      label:'Exam mode' },
+  { key:'research',  label:'Research mode' },
+  { key:'terminal',  label:'Terminal / Linux' },
+  { key:'writer',    label:'Writer mode · El Ágora' },
+  { key:'bio',       label:'Biocomputación' },
+  { key:'simtom',    label:'simTOM++' },
+];
+
+// l = language (en/pt/fr/es/la) · t = text · w = weight (default .5 if omitted)
+// h = [startHour,endHour) 24h, wraps midnight if start>end · d = days-of-week (0=Sun)
+// c = context key — must match the selector above, or be omitted (universal)
+const GREETING_BANK = [
+  // English — aerospace & clinical
+  { l:'en', t:`System Operational. Welcome back, Student Pilot.`, w:0.8, h:[6,19] },
+  { l:'en', t:`Telemetry stable, Cpt. Guevara. Initiate cycle.`, w:0.9, c:'exam' },
+  { l:'en', t:`The laboratory awaits, Researcher. Do not compromise.`, w:0.7, c:'research' },
+  { l:'en', t:`Altimeter calibrated. Proceed with the flight plan, Tom.`, w:0.5 },
+  { l:'en', t:`Hypoxia thresholds within limits. Core temperature nominal.`, w:0.5 },
+  // English — cold war & high-altitude
+  { l:'en', t:`Altimeter check, Lord of the Manor. The estate is stable.`, w:0.3, d:[0,6] },
+  { l:'en', t:`Cabin pressure nominal, First Officer. Prepare for crosswind.`, w:0.5 },
+  { l:'en', t:`Data integrity verified. Proceed to dissect the protocol, Magister.`, w:0.5 },
+  { l:'en', t:`No signs of metabolic failure. Keep editing, Guevara.`, w:0.5 },
+  // Português — sotaque de Lisboa
+  { l:'pt', t:`Bom dia, Doutor Chacon. À sua responsabilidade.`, w:0.8, h:[6,12] },
+  { l:'pt', t:`Boa tarde, Engenheiro. O código não tolera a mediocridade.`, w:0.7, c:'terminal' },
+  { l:'pt', t:`Noite escura, Tomu. A persistência é a nossa única herança.`, w:0.6, h:[22,4] },
+  { l:'pt', t:`Bem-vindo ao front, camarada Guevara.`, w:0.5, c:'writer' },
+  { l:'pt', t:`Silêncio no laboratório. Sua Senhoria, o Catedrático, está na cabine.`, w:0.5, c:'bio' },
+  { l:'pt', t:`O outono de 2024 já passou, Tomu. Escreve a tua própria herança.`, w:0.5 },
+  { l:'pt', t:`Bom dia, Legado de Além-Mar. A burocracia espera por si.`, w:0.5, d:[1], h:[5,9] },
+  { l:'pt', t:`O motor está quente, Doutor. Não queime o óleo.`, w:0.5 },
+  // Français — éditorial & cynisme
+  { l:'fr', t:`Bonjour, Monsieur Thomas. Le texte attend votre rigueur.`, w:0.8, c:'writer' },
+  { l:'fr', t:`Bonsoir, Chercheur. Moins de prose, plus de chirurgie.`, w:0.7, h:[16,22] },
+  { l:'fr', t:`Salutations, Capitaine. L'ordre est le seul bouclier.`, w:0.6 },
+  { l:'fr', t:`Bonjour, L'Enfant Terrible. Quelle structure allons-nous briser aujourd'hui ?`, w:0.6, c:'writer' },
+  { l:'fr', t:`La médiocrité est un choix, Monsieur Guevara. Ne la signez pas.`, w:0.5 },
+  { l:'fr', t:`Bonsoir, Attaché. La diplomatie s'arrête au terminal de Linux.`, w:0.5, c:'terminal' },
+  // Español — manifiesto de la sabana
+  { l:'es', t:`Buen día, comandante. Sangre, tinta y café en orden de marcha.`, w:0.9, d:[1], h:[5,10] },
+  { l:'es', t:`La siempreviva se ha marchitado, Tomu. Que viva la música.`, w:0.4, c:'writer' },
+  { l:'es', t:`Salomón, las cartas están sobre el tablero. Elige tu arcano.`, w:0.3, h:[22,4] },
+  { l:'es', t:`Atención sostenida en niveles óptimos. Sin novedad en el frente, Guevara.`, w:0.5 },
+  { l:'es', t:`94% de oxígeno y 100% de prosa. Despeje la garganta, General.`, w:0.5 },
+  { l:'es', t:`La Decana ha firmado el decreto diario. A trabajar, Thomas.`, w:0.5 },
+  { l:'es', t:`Un blazer, un anillo y un manuscrito. El escenario está listo, actor.`, w:0.5 },
+  { l:'es', t:`Sabor a metal y Monster blanca. El búnker de Mosquera está operativo.`, w:0.5 },
+  // Latín — el claustro hermético
+  { l:'la', t:`Astra inclinant, sed non necessitant, Frater Thomas.`, w:0.5, h:[0,5] },
+  { l:'la', t:`Rigor et Veritas, Thoma. Ad alta.`, w:0.8 },
+  { l:'la', t:`Memento mori, memento vivere, Cpt. Guevara.`, w:0.5 },
+  { l:'la', t:`Vivere militare est, Legate Guevara.`, w:0.5, c:'exam' },
+  { l:'la', t:`Aut viam inveniam aut faciam, Discipule.`, w:0.5, c:'simtom' },
+  { l:'la', t:`Scientia non habet inimicum nisi ignorantem.`, w:0.5 },
+  // Hermético / masónico — baja probabilidad por diseño
+  { l:'en', t:`The Grand Architect observes the design. Align the square, Tom.`, w:0.10 },
+  { l:'en', t:`From darkness to light, Frater. The Satori-Node is illuminated.`, w:0.15 },
+  { l:'en', t:`Lux in Tenebris. Your watch begins, Brother.`, w:0.20, h:[1,4] },
+  { l:'en', t:`The compass cuts clean, Frater. Design your architecture.`, w:0.08 },
+  { l:'la', t:`Solve et Coagula, Tomu. Dissolve the data, bind the matrix.`, w:0.10 },
+  { l:'en', t:`Three knocks at the door. Interior laboratory unlocked.`, w:0.05 },
+];
+
+function hourInBand(hour, band) {
+  if (!band) return true;
+  const [s, e] = band;
+  return s <= e ? (hour >= s && hour < e) : (hour >= s || hour < e);
+}
+function dayInBand(day, days) { return !days || days.includes(day); }
+
+function weightedPick(arr) {
+  const total = arr.reduce((s, p) => s + (p.w ?? 0.5), 0);
+  let r = Math.random() * total;
+  for (const p of arr) { r -= (p.w ?? 0.5); if (r <= 0) return p; }
+  return arr[arr.length - 1];
+}
+
+function selectGreeting() {
+  const now = new Date(), hour = now.getHours(), day = now.getDay();
+  const ctx = state.settings.context || 'general';
+  const tiers = [
+    p => hourInBand(hour, p.h) && dayInBand(day, p.d) && (!p.c || p.c === ctx),
+    p => (!p.c || p.c === ctx),
+    p => !p.c, // the unconstrained general pool — large enough that this tier never actually comes up empty
+  ];
+  for (const test of tiers) {
+    const pool = GREETING_BANK.filter(test);
+    if (pool.length) return weightedPick(pool).t;
+  }
+  return 'System operational.'; // defensive only — unreachable as long as GREETING_BANK has any context-free entries
+}
+
+function refreshGreeting() {
+  const el = document.getElementById('greeting');
+  if (el) el.textContent = selectGreeting();
+}
+
+function setContext(value) {
+  state.settings.context = value;
+  saveState();
+  refreshGreeting();
+  const label = CONTEXTS.find(c => c.key === value);
+  showToast(`Operating context: ${label ? label.label : value}`);
+}
+
+function populateContextSelect() {
+  const sel = document.getElementById('contextSelect');
+  if (!sel) return;
+  sel.innerHTML = CONTEXTS.map(c => `<option value="${c.key}" ${state.settings.context === c.key ? 'selected' : ''}>${c.label}</option>`).join('');
+}
+
+/* ==========================================================================
+   RECURRENCE ENGINE
+   ========================================================================== */
+function parseRecurrenceRule(ruleStr) {
+  if (!ruleStr) return null;
+  const parts = ruleStr.split(';').reduce((acc, p) => {
+    const idx = p.indexOf('=');
+    if (idx === -1) return acc;
+    const k = p.substring(0, idx).trim().toUpperCase();
+    const v = p.substring(idx + 1).trim();
+    if (k && v) acc[k] = v;
+    return acc;
+  }, {});
+  return {
+    freq: parts.FREQ || 'DAILY',
+    interval: parseInt(parts.INTERVAL) || 1,
+    byDay: parts.BYDAY ? parts.BYDAY.split(',') : [],
+    byMonthDay: parts.BYMONTHDAY ? parts.BYMONTHDAY.split(',').map(Number) : [],
+    until: parts.UNTIL || null,
+    count: parts.COUNT ? parseInt(parts.COUNT) : null,
+    excludeDates: parts.EXCLUDE ? parts.EXCLUDE.split(',') : [],
+    excludeCycleDays: parts.EXCLUDECYCLEDAY ? parts.EXCLUDECYCLEDAY.split(',') : []
+  };
+}
+
+function generateOccurrences(rule, fromDate, toDate, maxCount = 200) {
+  if (!rule) return [];
+  const candidates = [];
+  const start = new Date(fromDate + 'T00:00:00');
+  const end = toDate ? new Date(toDate + 'T23:59:59') : null;
+  let cursor = new Date(start);
+  let count = 0;
+  const dayMap = { SU:0, MO:1, TU:2, WE:3, TH:4, FR:5, SA:6 };
+  while (true) {
+    if (end && cursor > end) break;
+    if (rule.count && count >= rule.count) break;
+    if (count >= maxCount) break;
+    if (rule.freq === 'WEEKLY' && rule.byDay.length) {
+      const targetDays = rule.byDay.map(d => dayMap[d.toUpperCase()]);
+      if (!targetDays.includes(cursor.getDay())) { cursor.setDate(cursor.getDate() + 1); continue; }
+    }
+    if (rule.byMonthDay.length && !rule.byMonthDay.includes(cursor.getDate())) { cursor.setDate(cursor.getDate() + 1); continue; }
+    candidates.push(new Date(cursor));
+    count++;
+    switch (rule.freq) {
+      case 'DAILY': cursor.setDate(cursor.getDate() + rule.interval); break;
+      case 'WEEKLY': cursor.setDate(cursor.getDate() + rule.interval * 7); break;
+      case 'MONTHLY': cursor.setMonth(cursor.getMonth() + rule.interval); break;
+      case 'YEARLY': cursor.setFullYear(cursor.getFullYear() + rule.interval); break;
+      default: cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  return candidates;
+}
+
+function applyExceptionFilters(occurrences, rule) {
+  return occurrences.filter(date => {
+    const dateStr = date.toISOString().slice(0, 10);
+    if (rule.excludeDates && rule.excludeDates.includes(dateStr)) return false;
+    if (rule.excludeCycleDays && rule.excludeCycleDays.length > 0) {
+      const cycleDay = computeCycleDay(date);
+      if (rule.excludeCycleDays.includes(cycleDay)) return false;
+    }
+    return true;
+  });
+}
+
+function getTaskOccurrences(task, from, to) {
+  const rule = parseRecurrenceRule(task.recurrence);
+  if (!rule) return task.dueDate ? [new Date(task.dueDate + 'T12:00:00')] : [];
+  const base = generateOccurrences(rule, from || task.startDate || new Date().toISOString().slice(0, 10), to);
+  return applyExceptionFilters(base, rule);
+}
+
+function explainRule(ruleStr) {
+  const rule = parseRecurrenceRule(ruleStr);
+  if (!rule) return 'One-time';
+  let desc = `Every ${rule.interval > 1 ? rule.interval + ' ' : ''}${rule.freq.toLowerCase()}`;
+  if (rule.byDay.length) desc += ` on ${rule.byDay.join(', ')}`;
+  if (rule.until) desc += ` until ${rule.until}`;
+  if (rule.count) desc += ` (${rule.count} times)`;
+  return desc;
+}
+
+/* ==========================================================================
+   ACADEMIC CYCLE ENGINE
+   ========================================================================== */
+function computeCycleDay(date = new Date()) {
+  if (!state.modules.academicCycle) return 'Standard';
+  const { definition, refDate, refDay } = state.cycle;
+  const ref = new Date(refDate + 'T12:00:00');
+  const msDiff = date.getTime() - ref.getTime();
+  const dayDiff = Math.round(msDiff / 86400000);
+  const idx = definition.indexOf(refDay);
+  if (idx < 0) return 'Standard';
+  const total = definition.length;
+  const generatedIdx = ((idx + dayDiff) % total + total) % total;
+  const generated = definition[generatedIdx];
+  const dateStr = date.toISOString().slice(0, 10);
+  return state.overrides[dateStr] || generated;
+}
+
+/* ==========================================================================
+   FOCUS TELEMETRY ENGINE
+   ========================================================================== */
+function startFocusSession() {
+  if (!state.modules.focusTracking) { showToast('Focus module disabled in Settings.'); return; }
+  const subject = document.getElementById('focusSubject').value.trim() || 'Unnamed session';
+  const intent = document.getElementById('focusIntent').value;
+  const durBtn = document.querySelector('#duration .btn.on');
+  const minutes = parseInt(durBtn?.dataset.min || '25');
+  activeFocusSession = { id: Date.now(), start: new Date().toISOString(), subject, intent, targetMinutes: minutes, interruptions: 0, elapsed: 0, paused: false };
+  closeModal('focus');
+  clearFocusFields();
+  showFocusBar();
+  startFocusTimer();
+  if (minutes > 0) activeFocusSession.autoStop = setTimeout(() => stopFocus(), minutes * 60000);
+}
+
+function startFocusTimer() {
+  if (focusTimerInterval) clearInterval(focusTimerInterval);
+  focusTimerInterval = setInterval(() => {
+    if (activeFocusSession && !activeFocusSession.paused) { activeFocusSession.elapsed += 1000; updateFocusTimerUI(); }
+  }, 1000);
+}
+
+function pauseFocus() { if (activeFocusSession) activeFocusSession.paused = true; }
+function resumeFocus() { if (activeFocusSession) activeFocusSession.paused = false; }
+
+function stopFocus() {
+  if (!activeFocusSession) return;
+  clearTimeout(activeFocusSession.autoStop);
+  clearInterval(focusTimerInterval);
+  const session = {
+    id: activeFocusSession.id, start: activeFocusSession.start, end: new Date().toISOString(),
+    subject: activeFocusSession.subject, intent: activeFocusSession.intent || '',
+    targetMinutes: activeFocusSession.targetMinutes, durationMs: activeFocusSession.elapsed,
+    interruptions: activeFocusSession.interruptions, tags: []
+  };
+  state.focusSessions.push(session);
+  activeFocusSession = null;
+  focusTimerInterval = null;
+  hideFocusBar();
+  saveState();
+  renderDashboard();
+}
+
+function logInterruptionUI() {
+  if (activeFocusSession) { activeFocusSession.interruptions++; showToast('Interruption logged.'); }
+}
+
+function showFocusBar() {
+  document.getElementById('focusBar').classList.add('active');
+  document.getElementById('focusBarLabel').textContent = `Focus: ${activeFocusSession.subject}`;
+}
+function hideFocusBar() { document.getElementById('focusBar').classList.remove('active'); }
+
+function updateFocusTimerUI() {
+  if (!activeFocusSession) return;
+  const totalSec = Math.floor(activeFocusSession.elapsed / 1000);
+  const mins = Math.floor(totalSec / 60).toString().padStart(2, '0');
+  const secs = (totalSec % 60).toString().padStart(2, '0');
+  document.getElementById('focusTimer').textContent = `${mins}:${secs}`;
+}
+
+function clearFocusFields() {
+  document.getElementById('focusSubject').value = '';
+  document.getElementById('focusIntent').value = '';
+}
+
+/* ==========================================================================
+   PROJECT SYSTEM
+   ========================================================================== */
+function addProject(name, description = '') {
+  const existing = state.projects.find(p => p.name === name);
+  if (existing) return existing.id;
+  const project = { id: Date.now(), name, description, progress: 0, deadline: '', milestones: [], taskIds: [] };
+  state.projects.push(project);
+  saveState();
+  return project.id;
+}
+
+function getProjectStats(projectName) {
+  const tasks = state.tasks.filter(t => t.project === projectName && !t.archived);
+  const done = tasks.filter(t => t.done).length;
+  // Exact match (not substring) — a session for "Research" no longer bleeds into a "Clinical Research" project's stats.
+  const sessions = state.focusSessions.filter(s => s.subject === projectName);
+  const focusMs = sessions.reduce((sum, s) => sum + (s.durationMs || 0), 0);
+  return {
+    totalTasks: tasks.length, completedTasks: done,
+    progress: tasks.length ? Math.round((done / tasks.length) * 100) : 0,
+    focusHours: (focusMs / 3600000).toFixed(1), sessions: sessions.length
+  };
+}
+
+function updateProjectDatalist() {
+  const list = document.getElementById('projectList');
+  if (!list) return;
+  list.innerHTML = state.projects.map(p => `<option value="${escapeHtml(p.name)}">`).join('');
+}
+
+/* ==========================================================================
+   ANALYTICS ENGINE
+   ========================================================================== */
+function getDailyFocusData(daysBack = 7) {
+  const days = [];
+  for (let i = daysBack - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const total = state.focusSessions.filter(s => s.start.startsWith(dateStr)).reduce((sum, s) => sum + (s.durationMs || 0), 0);
+    days.push({ date: dateStr, hours: total / 3600000 });
+  }
+  return days;
+}
+
+// Fixed: previously took only the first word of the session subject, so any
+// multi-word project name was silently truncated in the analytics breakdown.
+function getProjectAllocation() {
+  const map = {};
+  state.focusSessions.forEach(s => {
+    const key = (s.subject || 'Unlabeled').trim() || 'Unlabeled';
+    map[key] = (map[key] || 0) + (s.durationMs || 0);
+  });
+  return Object.entries(map).map(([name, ms]) => ({ name, hours: ms / 3600000 })).sort((a, b) => b.hours - a.hours);
+}
+
+function renderAnalyticsSparkline(days) {
+  const w = 280, h = 130;
+  const values = days.map(d => d.hours);
+  const max = Math.max(...values, 0.1);
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => [i * step, h - (v / max) * (h - 12) - 6]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const area = line + ` L ${w},${h} L 0,${h} Z`;
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="currentColor" stop-opacity=".55"/>
+      <stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#g)"/>
+    <path d="${line}" stroke="currentColor" stroke-width="2" fill="none"/>
+  </svg>`;
+}
+
+/* ==========================================================================
+   TODAY'S SCHEDULE — now a real, editable list (was static decoration)
+   ========================================================================== */
+function addScheduleItem(time, title, meta, tone) {
+  state.schedule.push({ time, title, meta, tone: tone || '' });
+  state.schedule.sort((a, b) => a.time.localeCompare(b.time));
+  saveState();
+}
+function deleteScheduleItem(index) {
+  state.schedule.splice(index, 1);
+  saveState();
+  renderSchedule();
+}
+function submitScheduleItem() {
+  const time = document.getElementById('schedTime').value;
+  const title = document.getElementById('schedTitle').value.trim();
+  const meta = document.getElementById('schedMeta').value.trim();
+  if (!time || !title) { showToast('Time and title are required.'); return; }
+  addScheduleItem(time, title, meta, '');
+  document.getElementById('schedTitle').value = '';
+  document.getElementById('schedMeta').value = '';
+  renderSchedule();
+}
+
+/* ==========================================================================
+   UI RENDERING (all views)
+   ========================================================================== */
+function navigateTo(view) {
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  const target = document.getElementById(`view-${view}`);
+  if (target) target.style.display = 'block';
+  activeView = view;
+  buildNav();
+  switch (view) {
+    case 'command': renderDashboard(); break;
+    case 'schedule': renderCalendarView(); break;
+    case 'tasks': renderTaskManagementView(); break;
+    case 'focus': renderFocusHistoryView(); break;
+    case 'projects': renderProjectsView(); break;
+    case 'analytics': renderAnalyticsView(); break;
+    case 'horario': renderTimetableView(); break;
+    case 'settings': renderSettingsView(); break;
+  }
+}
+
+function buildNav() {
+  const nav = document.getElementById('nav');
+  const items = ['Command', 'Schedule', 'Tasks', 'Focus', 'Projects', 'Analytics', 'Horario', 'Settings'];
+  nav.innerHTML = '';
+  items.forEach(name => {
+    if (name === 'Focus' && !state.modules.focusTracking) return;
+    if (name === 'Analytics' && !state.modules.analytics) return;
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.classList.toggle('active', name.toLowerCase() === activeView);
+    b.onclick = () => navigateTo(name.toLowerCase());
+    nav.appendChild(b);
+  });
+}
+
+// ---- DASHBOARD (Command) ----
+function renderDashboard() {
+  const container = document.getElementById('view-command');
+  container.innerHTML = `
+    <div class="hero">
+      <div>
+        <div class="hairline" id="dateLabel"></div>
+        <div class="greet-row">
+          <h2 id="greeting">Good day.</h2>
+          <button class="greet-refresh" onclick="refreshGreeting()" title="Re-roll greeting" aria-label="Re-roll greeting">↻</button>
+        </div>
+        <p>Your operational picture is stable. Review the queue before committing to a new objective.</p>
+      </div>
+      <div style="display:flex;gap:18px;align-items:flex-end">
+        <div class="clock">
+          <div class="t" id="clock">00:00:00</div>
+          <div class="hairline" id="tzLabel">Local time</div>
+        </div>
+        <button class="btn primary" onclick="openModal('focus')">◉ Initiate focus</button>
+      </div>
+    </div>
+    <div class="layout">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <section class="panel">
+          <header><div><div class="hairline">Flight plan</div><h3>Today's schedule</h3></div><button class="btn sm" onclick="navigateTo('schedule')">▦ Full calendar</button></header>
+          <div id="schedule"></div>
+          <div class="schedule-add">
+            <input type="time" id="schedTime" style="flex:0 0 90px" />
+            <input id="schedTitle" placeholder="Block title" />
+            <input id="schedMeta" placeholder="Location · note" />
+            <button class="btn sm" onclick="submitScheduleItem()">＋ Add block</button>
+          </div>
+        </section>
+        <section class="panel">
+          <header><div><div class="hairline">Priority queue</div><h3>Active objectives</h3></div><button class="btn sm" onclick="openModal('task')">＋ New task</button></header>
+          <div id="tasks"></div>
+        </section>
+      </div>
+      <div class="rail">
+        <section class="telemetry" id="telemetry-panel"></section>
+        <section class="panel" style="padding:20px">
+          <div class="hairline">Active project</div>
+          <div id="active-project"></div>
+        </section>
+        <section class="panel" style="padding:20px">
+          <div class="hairline">Data sovereignty</div>
+          <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
+            <span style="color:var(--primary);font-size:20px">⛨</span>
+            <div><div id="sovereigntyTitle" style="font-size:13px;font-weight:600">Ephemeral cache active</div><div class="hairline" id="sovereigntyDesc">Clears from this device on tab close</div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn sm" onclick="syncNow()">↻ Sync now</button>
+            <button class="btn sm" onclick="exportData()">⤓ Export JSON</button>
+            <button class="btn sm" onclick="importData()">⤒ Restore</button>
+            <input type="file" id="restoreFile" accept="application/json" hidden />
+          </div>
+        </section>
+      </div>
+    </div>`;
+  updateDashboardData();
+}
+
+function updateDashboardData() {
+  document.getElementById('dateLabel').textContent = `Command bridge · ${new Intl.DateTimeFormat('en', { weekday:'long', month:'long', day:'numeric' }).format(new Date())} · ${computeCycleDay()}`;
+  refreshGreeting();
+  document.getElementById('cycle').textContent = computeCycleDay();
+  renderSchedule();
+  renderTasks();
+  renderTelemetry();
+  renderActiveProject();
+  updateDeviceModeUI();
+  const tz = -Math.round(new Date().getTimezoneOffset() / 60);
+  document.getElementById('tzLabel').textContent = `Local time · UTC${tz >= 0 ? '+' : ''}${tz}`;
+}
+
+function renderSchedule() {
+  const el = document.getElementById('schedule');
+  if (!el) return;
+  if (!state.schedule.length) { el.innerHTML = '<p class="hairline" style="padding:16px 20px">No blocks scheduled. Add one below.</p>'; return; }
+  el.innerHTML = state.schedule.map((s, i) => `
+    <div class="row"><span class="tm">${escapeHtml(s.time)}</span><span class="bar ${escapeHtml(s.tone || '')}"></span>
+     <div><div class="title">${escapeHtml(s.title)}</div><div class="meta">${escapeHtml(s.meta || '')}</div></div>
+     <button class="btn sm del" onclick="deleteScheduleItem(${i})" aria-label="Remove block">✕</button></div>`).join('');
+}
+
+function renderTasks() {
+  const el = document.getElementById('tasks');
+  if (!el) return;
+  const activeTasks = state.tasks.filter(t => !t.archived && !t.done);
+  if (!activeTasks.length) { el.innerHTML = '<p class="hairline" style="padding:16px 20px">No active objectives. Queue is clear.</p>'; return; }
+  el.innerHTML = activeTasks.map(task => `
+    <div class="task">
+      <button class="chk" onclick="toggleTask(${task.id})" aria-label="Mark done"></button>
+      <div style="flex:1;min-width:0">
+        <div class="title">${escapeHtml(task.title)}</div>
+        <div class="meta">${escapeHtml(task.dueDate || 'No due')} · ${escapeHtml(task.project || 'Uncategorized')}${task.recurrence ? ` · ${escapeHtml(explainRule(task.recurrence))}` : ''}</div>
+      </div>
+      <span class="pri ${task.priority === 'Critical' ? 'crit' : ''}">${escapeHtml(task.priority)}</span>
+    </div>`).join('');
+}
+
+function toggleTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (task) { task.done = !task.done; saveState(); renderDashboard(); if (activeView === 'tasks') renderTaskManagementView(); }
+}
+
+function renderTelemetry() {
+  const el = document.getElementById('telemetry-panel');
+  if (!el) return;
+  const daily = getDailyFocusData(7);
+  const totalHours = daily.reduce((sum, d) => sum + d.hours, 0).toFixed(1);
+  const sessions = state.focusSessions.length;
+  const avgHours = sessions ? (totalHours / sessions).toFixed(1) : '--';
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="lbl">Focus telemetry · 7 days</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
+          <span class="big">${totalHours}</span><span class="mono" style="font-size:12px">HRS</span>
+        </div>
+      </div>
+      <span style="color:var(--primary)">◬</span>
+    </div>
+    <div class="chart">${renderAnalyticsSparkline(daily)}</div>
+    <div class="grid3">
+      <div><div class="v">${sessions}</div><div class="lbl" style="margin-top:4px">Sessions</div></div>
+      <div><div class="v">${avgHours}h</div><div class="lbl" style="margin-top:4px">Avg duration</div></div>
+      <div><div class="v">${state.focusSessions.reduce((sum, s) => sum + s.interruptions, 0)}</div><div class="lbl" style="margin-top:4px">Interruptions</div></div>
+    </div>`;
+}
+
+function renderActiveProject() {
+  const lastProject = state.focusSessions.length ? state.focusSessions[state.focusSessions.length - 1].subject : 'Clinical Research Protocol';
+  const stats = getProjectStats(lastProject);
+  const el = document.getElementById('active-project');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:12px">
+      <h3 style="margin:0;font-size:18px">${escapeHtml(lastProject)}</h3>
+      <span class="mono" style="color:var(--primary);font-size:14px">${stats.progress}%</span>
+    </div>
+    <div class="progress"><span style="width:${stats.progress}%"></span></div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px" class="hairline">
+      <span>${stats.completedTasks}/${stats.totalTasks} tasks</span><span>${stats.focusHours}h</span>
+    </div>`;
+}
+
+// ---- DEVICE MODE (now functionally real — see storage abstraction above) ----
+function updateDeviceModeUI() {
+  const trusted = deviceMode === 'trusted';
+  document.getElementById('deviceDot').classList.toggle('idle', !trusted);
+  document.getElementById('deviceModeLabel').textContent = trusted ? 'Trusted Device' : 'Public Device';
+  document.getElementById('deviceModeDesc').textContent = trusted ? 'Persistent · saved to this device' : 'Ephemeral · clears on tab close';
+  document.getElementById('deviceModeToggle').textContent = trusted ? 'Switch to Public' : 'Switch to Trusted';
+  const st = document.getElementById('sovereigntyTitle');
+  const sd = document.getElementById('sovereigntyDesc');
+  if (st) st.textContent = trusted ? 'Trusted cache active' : 'Ephemeral cache active';
+  if (sd) sd.textContent = trusted ? 'Saved to localStorage on this device' : 'Session-only — wiped on tab close';
+}
+
+function toggleDeviceMode() {
+  if (deviceMode === 'public') {
+    if (!confirm('Mark this device as Trusted? Your data and Google sign-in will be saved on this computer until you switch back or sign out.')) return;
+    deviceMode = 'trusted';
+    localStorage.setItem('tomos.devicemode', 'trusted');
+    storageSet('tomos.astra.v3', JSON.stringify(state)); // now writes to localStorage
+    sessionStorage.removeItem('tomos.astra.v3');
+    if (accessToken) persistToken();
+    sessionStorage.removeItem('tomos.token'); sessionStorage.removeItem('tomos.token_expiry');
+    showToast('Switched to Trusted Device. Data now persists here.');
+  } else {
+    if (!confirm("Switch to Public Device? This immediately erases TomOS Astra's data and Google sign-in from this device. Export a backup first if you need one.")) return;
+    wipeAllLocalPersistence();
+    deviceMode = 'public';
+    accessToken = null; tokenExpiry = 0; driveFolderId = null; driveFileId = null;
+    sessionStorage.setItem('tomos.astra.v3', JSON.stringify(state));
+    updateAuthUI(false);
+    showToast('Switched to Public Device. Local data and sign-in cleared.');
+  }
+  updateDeviceModeUI();
+}
+
+// ---- CALENDAR VIEW (single-pass occurrence computation, was recomputed per day before) ----
+function renderCalendarView() {
+  const el = document.getElementById('view-schedule');
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+  const byDate = {};
+  state.tasks.forEach(t => {
+    if (t.archived) return;
+    getTaskOccurrences(t, monthStart, monthEnd).forEach(d => {
+      const ds = d.toISOString().slice(0, 10);
+      if (ds < monthStart || ds > monthEnd) return;
+      (byDate[ds] = byDate[ds] || []).push(t);
+    });
+  });
+  let html = `<section class="panel" style="height:auto"><header><h3>${new Intl.DateTimeFormat('en', { month:'long', year:'numeric' }).format(now)}</h3></header>`;
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:20px">';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => html += `<div class="hairline" style="text-align:center">${d}</div>`);
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const tasksOnDay = byDate[dateStr] || [];
+    html += `<div style="border:1px solid var(--border);min-height:60px;padding:4px">
+      <div class="mono" style="font-size:10px">${day}</div>
+      ${tasksOnDay.map(t => `<div style="font-size:9px;margin-top:2px;color:var(--primary)">• ${escapeHtml(t.title)}</div>`).join('')}
+    </div>`;
+  }
+  html += '</div></section>';
+  el.innerHTML = html;
+}
+
+// ---- TASK MANAGEMENT VIEW ----
+function renderTaskManagementView() {
+  const el = document.getElementById('view-tasks');
+  const tasks = state.tasks;
+  el.innerHTML = `
+    <section class="panel" style="height:auto">
+      <header><h3>All Tasks</h3><button class="btn sm" onclick="openModal('task')">+ New</button></header>
+      <div style="padding:20px">
+        ${tasks.length === 0 ? '<p class="hairline">No tasks.</p>' : tasks.map(t => `
+          <div class="task${t.done ? ' done' : ''}" style="border-bottom:1px solid var(--border);padding:12px 0">
+            <button class="chk${t.done ? ' on' : ''}" onclick="toggleTask(${t.id})"></button>
+            <div style="flex:1"><b>${escapeHtml(t.title)}</b><div class="meta">Due: ${escapeHtml(t.dueDate || 'none')} | ${escapeHtml(t.project || '')}</div></div>
+            <span class="pri ${t.priority === 'Critical' ? 'crit' : ''}">${escapeHtml(t.priority)}</span>
+            ${t.recurrence ? `<span class="hairline" style="margin-left:10px">${escapeHtml(explainRule(t.recurrence))}</span>` : ''}
+            <button class="btn sm" onclick="deleteTask(${t.id})">✕</button>
+          </div>`).join('')}
+      </div>
+    </section>`;
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  saveState();
+  renderTaskManagementView();
+  if (activeView === 'command') renderDashboard();
+}
+
+// ---- FOCUS HISTORY ----
+function renderFocusHistoryView() {
+  const el = document.getElementById('view-focus');
+  const sessions = state.focusSessions.slice().reverse();
+  el.innerHTML = `
+    <section class="panel" style="height:auto">
+      <header><h3>Focus History</h3></header>
+      <div style="padding:20px">
+        ${sessions.length === 0 ? '<p class="hairline">No sessions recorded.</p>' :
+          sessions.map(s => `
+          <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+            <div class="hairline">${escapeHtml(new Date(s.start).toLocaleString())} → ${escapeHtml(new Date(s.end).toLocaleString())}</div>
+            <div><b>${escapeHtml(s.subject)}</b> · ${Math.round(s.durationMs / 60000)} min · interruptions: ${s.interruptions}</div>
+          </div>`).join('')}
+      </div>
+    </section>`;
+}
+
+// ---- PROJECTS VIEW ----
+function renderProjectsView() {
+  const el = document.getElementById('view-projects');
+  const projects = state.projects.length ? state.projects : [{ name: 'Clinical Research Protocol', id: 0 }];
+  el.innerHTML = `
+    <section class="panel" style="height:auto">
+      <header><h3>Projects</h3><button class="btn sm" onclick="openModal('project')">+ Add</button></header>
+      <div style="padding:20px">
+        ${projects.map(p => {
+          const stats = getProjectStats(p.name);
+          return `<div style="margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px">
+            <div style="display:flex;justify-content:space-between"><b>${escapeHtml(p.name)}</b><span>${stats.progress}%</span></div>
+            <div class="progress"><span style="width:${stats.progress}%"></span></div>
+            <div class="hairline">${stats.completedTasks}/${stats.totalTasks} tasks · ${stats.focusHours}h focus</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`;
+}
+
+function submitNewProject() {
+  const name = document.getElementById('newProjectName').value.trim();
+  if (!name) { showToast('Project needs a name.'); return; }
+  const desc = document.getElementById('newProjectDesc').value.trim();
+  addProject(name, desc);
+  document.getElementById('newProjectName').value = '';
+  document.getElementById('newProjectDesc').value = '';
+  updateProjectDatalist();
+  closeModal('project');
+  renderProjectsView();
+}
+
+// ---- ANALYTICS VIEW ----
+function renderAnalyticsView() {
+  const el = document.getElementById('view-analytics');
+  const daily = getDailyFocusData(7);
+  const allocation = getProjectAllocation();
+  const totalHours = daily.reduce((a, d) => a + d.hours, 0).toFixed(1);
+  el.innerHTML = `
+    <section class="panel" style="padding:24px">
+      <header><h3>Analytics</h3></header>
+      <div class="hairline" style="margin-top:16px">Weekly focus</div>
+      <div style="margin:12px 0;height:150px">${renderAnalyticsSparkline(daily)}</div>
+      <div class="hairline">Total: ${totalHours}h</div>
+      <div class="hairline" style="margin-top:16px">Project allocation</div>
+      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+        ${allocation.length === 0 ? '<span class="hairline">No focus sessions logged yet.</span>' :
+          allocation.map(a => `<div style="flex:1;min-width:100px;text-align:center"><span class="mono">${a.hours.toFixed(1)}h</span><br><span class="hairline">${escapeHtml(a.name)}</span></div>`).join('')}
+      </div>
+    </section>`;
+}
+
+// ---- HORARIO (weekly class timetable) ----
+let timetableEditMode = false;
+
+function toggleTimetableEdit() {
+  timetableEditMode = !timetableEditMode;
+  renderTimetableView();
+}
+
+function renderTimetableView() {
+  const el = document.getElementById('view-horario');
+  const tt = state.timetable;
+  const edit = timetableEditMode;
+  const titleHtml = edit
+    ? `<input value="${escapeHtml(tt.title)}" onchange="updateTimetableMeta('title', this.value)" style="font-family:'Playfair Display',serif;font-size:22px;font-weight:600;border:1px solid var(--border);padding:6px 10px;width:auto" />`
+    : `<h3>${escapeHtml(tt.title)}</h3>`;
+  const subtitleHtml = edit
+    ? `<input value="${escapeHtml(tt.subtitle)}" onchange="updateTimetableMeta('subtitle', this.value)" style="margin-top:6px;border:1px solid var(--border);padding:5px 9px;font-size:11px;width:auto" />`
+    : `<div class="hairline" style="margin-top:6px">${escapeHtml(tt.subtitle)}</div>`;
+
+  let html = `
+    <section class="panel" style="height:auto">
+      <header>
+        <div>${titleHtml}${subtitleHtml}</div>
+        <button class="btn sm" onclick="toggleTimetableEdit()">${edit ? '✓ Done editing' : '✎ Edit schedule'}</button>
+      </header>
+      <div class="ttable-wrap"><table class="ttable">
+        <thead><tr><th>Hora</th>${tt.days.map((d, ci) => `<th>${
+          edit ? `<input value="${escapeHtml(d)}" onchange="updateTimetableDay(${ci}, this.value)" style="text-align:center;background:#ffffff22;color:#fff;border-color:#ffffff44" />` : escapeHtml(d)
+        }</th>`).join('')}</tr></thead>
+        <tbody>
+          ${tt.rows.map((row, ri) => `
+            <tr class="${escapeHtml(row.kind || '')}">
+              <td>${edit ? `<input value="${escapeHtml(row.time)}" onchange="updateTimetableTime(${ri}, this.value)" />` : escapeHtml(row.time)}
+                ${edit ? `<select onchange="updateTimetableRowKind(${ri}, this.value)" style="margin-top:6px;width:100%;font-size:10px;padding:4px">
+                    <option value="" ${!row.kind ? 'selected' : ''}>Clase</option>
+                    <option value="break" ${row.kind === 'break' ? 'selected' : ''}>Descanso</option>
+                    <option value="lunch" ${row.kind === 'lunch' ? 'selected' : ''}>Almuerzo</option>
+                  </select>
+                  <button class="ttable-del" onclick="deleteTimetableRow(${ri})">✕ quitar fila</button>` : ''}
+              </td>
+              ${row.cells.map((cell, ci) => `<td>${
+                edit ? `<input value="${escapeHtml(cell)}" onchange="updateTimetableCell(${ri}, ${ci}, this.value)" placeholder="—" />` : (escapeHtml(cell) || '—')
+              }</td>`).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table></div>
+      ${edit ? `<div style="padding:14px 20px"><button class="btn sm" onclick="addTimetableRow()">＋ Agregar bloque</button></div>` : ''}
+      <div class="hairline" style="padding:14px 20px 0">Actividades extracurriculares</div>
+      <div class="ttable-notes">
+        ${tt.notes.map((n, ni) => `<div class="ttable-note">${
+          edit ? `<input value="${escapeHtml(n)}" onchange="updateTimetableNote(${ni}, this.value)" /><button class="ttable-del" onclick="deleteTimetableNote(${ni})">✕</button>` : escapeHtml(n)
+        }</div>`).join('')}
+      </div>
+      ${edit ? `<div style="padding:0 20px 20px"><button class="btn sm" onclick="addTimetableNote()">＋ Agregar nota</button></div>` : ''}
+    </section>`;
+  el.innerHTML = html;
+}
+
+function updateTimetableMeta(field, value) { state.timetable[field] = value; saveState(); }
+function updateTimetableDay(idx, value) { state.timetable.days[idx] = value; saveState(); renderTimetableView(); }
+function updateTimetableTime(ri, value) { state.timetable.rows[ri].time = value; saveState(); }
+function updateTimetableRowKind(ri, value) { state.timetable.rows[ri].kind = value; saveState(); renderTimetableView(); }
+function updateTimetableCell(ri, ci, value) { state.timetable.rows[ri].cells[ci] = value; saveState(); }
+function deleteTimetableRow(ri) { state.timetable.rows.splice(ri, 1); saveState(); renderTimetableView(); }
+function addTimetableRow() {
+  state.timetable.rows.push({ time: 'Nuevo bloque', cells: state.timetable.days.map(() => ''), kind: '' });
+  saveState();
+  renderTimetableView();
+}
+function updateTimetableNote(ni, value) { state.timetable.notes[ni] = value; saveState(); }
+function deleteTimetableNote(ni) { state.timetable.notes.splice(ni, 1); saveState(); renderTimetableView(); }
+function addTimetableNote() { state.timetable.notes.push('Nueva nota'); saveState(); renderTimetableView(); }
+
+// ---- SETTINGS ----
+function renderSettingsView() {
+  const el = document.getElementById('view-settings');
+  el.innerHTML = `
+    <section class="panel" style="padding:24px">
+      <header><h3>Settings</h3></header>
+      <div>
+        <label class="hairline">Modules</label>
+        <div><input type="checkbox" id="modAcademicCycle" ${state.modules.academicCycle ? 'checked' : ''} onchange="toggleModule('academicCycle', this.checked)"> Academic Cycle</div>
+        <div><input type="checkbox" id="modFocusTracking" ${state.modules.focusTracking ? 'checked' : ''} onchange="toggleModule('focusTracking', this.checked)"> Focus Tracking</div>
+        <div><input type="checkbox" id="modAnalytics" ${state.modules.analytics ? 'checked' : ''} onchange="toggleModule('analytics', this.checked)"> Analytics</div>
+      </div>
+      <hr style="border-color:var(--border);margin:22px 0"/>
+      <div class="hairline">Operating context</div>
+      <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Drives which greeting register is eligible on the Command bridge. Quick-switch from the top bar at any time — this just mirrors that choice.</p>
+      <select id="setContext" style="margin-top:8px" onchange="setContext(this.value)"></select>
+      <hr style="border-color:var(--border);margin:22px 0"/>
+      <div class="hairline">Academic cycle</div>
+      <button class="btn sm" style="margin-top:8px" onclick="openCycleModal()">Manage cycle definition &amp; overrides</button>
+    </section>`;
+  populateContextSelect();
+  const setContextSel = document.getElementById('setContext');
+  if (setContextSel) setContextSel.innerHTML = document.getElementById('contextSelect').innerHTML;
+}
+
+function toggleModule(module, enabled) {
+  state.modules[module] = enabled;
+  saveState();
+  buildNav();
+  if (activeView === 'focus' && !state.modules.focusTracking) navigateTo('command');
+  if (activeView === 'analytics' && !state.modules.analytics) navigateTo('command');
+}
+
+function openCycleModal() {
+  document.getElementById('cycleDef').value = state.cycle.definition.join(',');
+  document.getElementById('cycleRefDate').value = state.cycle.refDate;
+  document.getElementById('cycleRefDay').value = state.cycle.refDay;
+  document.getElementById('cycleDayList').innerHTML = state.cycle.definition.map(d => `<option value="${escapeHtml(d)}">`).join('');
+  renderOverrideEditor();
+  openModal('cycle');
+}
+
+/* ==========================================================================
+   TASK CREATION
+   ========================================================================== */
+function addTask() {
+  const title = document.getElementById('newTitle').value.trim();
+  if (!title) { showToast('Task needs a title.'); return; }
+  const projectName = document.getElementById('newProject').value.trim();
+  if (projectName) addProject(projectName);
+  const task = {
+    id: Date.now(), title, project: projectName,
+    priority: document.getElementById('newPri').value,
+    startDate: document.getElementById('newStartDate').value,
+    dueDate: document.getElementById('newDueDate').value,
+    recurrence: document.getElementById('newRecurrence').value,
+    excludeCycleDays: document.getElementById('newExcludeCycle').value.split(',').map(s => s.trim()).filter(Boolean),
+    notes: document.getElementById('newNotes').value,
+    done: false, archived: false, createdAt: new Date().toISOString()
+  };
+  state.tasks.unshift(task);
+  saveState();
+  updateProjectDatalist();
+  closeModal('task');
+  clearTaskFields();
+  renderDashboard();
+}
+
+function clearTaskFields() {
+  document.getElementById('newTitle').value = '';
+  document.getElementById('newProject').value = '';
+  document.getElementById('newStartDate').value = '';
+  document.getElementById('newDueDate').value = '';
+  document.getElementById('newRecurrence').value = '';
+  document.getElementById('newExcludeCycle').value = '';
+  document.getElementById('newNotes').value = '';
+}
+
+/* ==========================================================================
+   ACADEMIC CYCLE MODAL (now actually reachable — see Settings — and the
+   override editor uses real inputs instead of native prompt() dialogs)
+   ========================================================================== */
+function updateCycle() {
+  const def = document.getElementById('cycleDef').value.split(',').map(s => s.trim()).filter(Boolean);
+  if (!def.length) { showToast('Cycle structure cannot be empty.'); return; }
+  const refDay = document.getElementById('cycleRefDay').value.trim();
+  if (!def.includes(refDay)) { showToast(`"${refDay}" must exactly match one of the cycle days listed above.`); return; }
+  state.cycle.definition = def;
+  state.cycle.refDate = document.getElementById('cycleRefDate').value;
+  state.cycle.refDay = refDay;
+  saveState();
+  closeModal('cycle');
+  document.getElementById('cycle').textContent = computeCycleDay();
+  showToast('Cycle updated.');
+}
+
+function renderOverrideEditor() {
+  const el = document.getElementById('overrideEditor');
+  if (!el) return;
+  const entries = Object.entries(state.overrides);
+  el.innerHTML = entries.length ? entries.map(([date, day]) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span class="mono" style="font-size:11px">${escapeHtml(date)} → ${escapeHtml(day)}</span>
+      <button class="btn sm" onclick="removeOverride('${escapeHtml(date)}')">✕</button>
+    </div>`).join('') : '<p class="hairline">No overrides set.</p>';
+}
+
+function addOverride() {
+  const date = document.getElementById('overrideDateInput').value;
+  const day = document.getElementById('overrideDayInput').value.trim();
+  if (!date || !day) { showToast('Pick a date and a cycle day first.'); return; }
+  state.overrides[date] = day;
+  saveState();
+  document.getElementById('overrideDateInput').value = '';
+  document.getElementById('overrideDayInput').value = '';
+  renderOverrideEditor();
+  document.getElementById('cycle').textContent = computeCycleDay();
+}
+
+function removeOverride(date) {
+  delete state.overrides[date];
+  saveState();
+  renderOverrideEditor();
+  document.getElementById('cycle').textContent = computeCycleDay();
+}
+
+/* ==========================================================================
+   GOOGLE OAUTH (PKCE) — now with a real, validated `state` parameter
+   ========================================================================== */
+function randomToken(bytes = 24) {
+  const array = new Uint8Array(bytes);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => ('0' + b.toString(16)).slice(-2)).join('');
+}
+function generateCodeVerifier() { return randomToken(56); }
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(verifier));
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function handleAuthClick() {
+  if (accessToken && Date.now() < tokenExpiry) { syncNow(); return; }
+  if (typeof google === 'undefined' || !google.accounts) { showToast('Google sign-in script failed to load — check your connection and reload.'); return; }
+  const verifier = generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+  const oauthState = randomToken(16);
+  sessionStorage.setItem('oauth_verifier', verifier);
+  sessionStorage.setItem('oauth_state', oauthState);
+  const client = google.accounts.oauth2.initCodeClient({
+    client_id: CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    ux_mode: 'redirect',
+    redirect_uri: 'https://thomasthethird13.github.io/astra',
+    state: oauthState,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  });
+  client.requestCode();
+}
+
+async function exchangeCodeForToken() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const returnedState = params.get('state');
+  if (!code) return false;
+  const verifier = sessionStorage.getItem('oauth_verifier');
+  const expectedState = sessionStorage.getItem('oauth_state');
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if (!verifier || !expectedState || returnedState !== expectedState) {
+    sessionStorage.removeItem('oauth_verifier'); sessionStorage.removeItem('oauth_state');
+    showToast('Sign-in could not be verified (state mismatch). Please try connecting again.');
+    return false;
+  }
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID, code, grant_type: 'authorization_code',
+    redirect_uri: 'https://thomasthethird13.github.io/astra', code_verifier: verifier,
+  });
+  let resp;
+  try {
+    resp = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+  } catch (e) { showToast('Network error while signing in.'); return false; }
+  sessionStorage.removeItem('oauth_verifier'); sessionStorage.removeItem('oauth_state');
+  if (!resp.ok) { showToast('Sign-in failed.'); return false; }
+  const data = await resp.json();
+  accessToken = data.access_token;
+  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+  persistToken();
+  updateAuthUI(true);
+  return true;
+}
+
+// Fixed: previously accessToken/tokenExpiry were only ever kept in memory —
+// localStorage.setItem('tomos.token', ...) never actually ran, so "Trusted
+// Device · Persistent" was a broken promise and every reload forced re-auth.
+// Routed through the same storage abstraction as app state: trusted devices
+// get localStorage, public devices get sessionStorage (survives a refresh,
+// wiped when the tab closes).
+function persistToken() {
+  if (!accessToken) return;
+  storageSet('tomos.token', accessToken);
+  storageSet('tomos.token_expiry', String(tokenExpiry));
+}
+
+function signOut() {
+  accessToken = null; tokenExpiry = 0; driveFolderId = null; driveFileId = null;
+  localStorage.removeItem('tomos.token');
+  localStorage.removeItem('tomos.token_expiry');
+  localStorage.removeItem('tomos.driveFolderId');
+  localStorage.removeItem('tomos.driveFileId');
+  updateAuthUI(false);
+  document.getElementById('syncStatus').textContent = 'Disconnected';
+  document.getElementById('syncIndicator').style.background = '#888';
+  showToast('Disconnected from Google Drive.');
+}
+
+function updateAuthUI(isLoggedIn) {
+  document.getElementById('authButton').textContent = isLoggedIn ? '◎ Sync' : '◎ Google sync';
+  document.getElementById('signOutButton').style.display = isLoggedIn ? 'inline-flex' : 'none';
+}
+
+/* ==========================================================================
+   GOOGLE DRIVE SYNC — now with real conflict detection instead of blind
+   "newest timestamp wins". Local and remote each carry a lastModified
+   stamp; if both moved since the last successful sync, the user is asked
+   which version survives instead of one silently overwriting the other.
+   ========================================================================== */
+let pendingConflict = null;
+
+async function driveRequest(endpoint, options = {}) {
+  if (!accessToken || Date.now() >= tokenExpiry) throw new Error('Not authenticated');
+  const res = await fetch(`https://www.googleapis.com/drive/v3${endpoint}`, {
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, ...options,
+  });
+  if (!res.ok) throw new Error(`Drive API error: ${res.status}`);
+  return res.json();
+}
+
+async function getOrCreateAppFolder() {
+  const list = await driveRequest(`/files?q=${encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`)}&spaces=drive`);
+  if (list.files.length) return list.files[0].id;
+  const folder = await driveRequest('/files', { method: 'POST', body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }) });
+  return folder.id;
+}
+
+async function getOrCreateStateFile(folderId) {
+  const list = await driveRequest(`/files?q=${encodeURIComponent(`name='${STATE_FILE_NAME}' and '${folderId}' in parents and trashed=false`)}&spaces=drive&fields=files(id,modifiedTime)`);
+  if (list.files.length) return list.files[0];
+  const file = await driveRequest('/files', { method: 'POST', body: JSON.stringify({ name: STATE_FILE_NAME, parents: [folderId], mimeType: 'application/json' }) });
+  const seedState = defaultState();
+  await fetch(`https://www.googleapis.com/upload/drive/v3/files/${file.id}?uploadType=media`, {
+    method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(seedState, null, 2),
+  });
+  return { id: file.id, modifiedTime: new Date().toISOString() };
+}
+
+async function readStateFile(fileId) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw new Error('Failed to read state file');
+  return res.json();
+}
+
+async function updateStateFile(fileId, data) {
+  await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(data, null, 2),
+  });
+  const meta = await driveRequest(`/files/${fileId}?fields=modifiedTime`);
+  return meta.modifiedTime;
+}
+
+function summarizeState(s) {
+  const tasks = (s.tasks || []).length, projects = (s.projects || []).length, sessions = (s.focusSessions || []).length;
+  const mod = s.meta && s.meta.lastModified ? new Date(s.meta.lastModified).toLocaleString() : 'unknown';
+  return `${tasks} tasks · ${projects} projects · ${sessions} focus sessions\nLast modified: ${mod}`;
+}
+
+async function syncFromDrive() {
+  if (!accessToken) throw new Error('Not authenticated');
+  if (!driveFolderId) { driveFolderId = await getOrCreateAppFolder(); storageSet('tomos.driveFolderId', driveFolderId); }
+  const fileMeta = await getOrCreateStateFile(driveFolderId);
+  driveFileId = fileMeta.id;
+  storageSet('tomos.driveFileId', driveFileId);
+  const remoteState = await readStateFile(driveFileId);
+  const remoteModified = new Date(fileMeta.modifiedTime).getTime();
+  const lastSync = (state.meta && state.meta.lastSyncTimestamp) || 0;
+  const localModified = (state.meta && state.meta.lastModified) || 0;
+  const remoteChanged = remoteModified > lastSync;
+  const localChanged = localModified > lastSync;
+
+  if (remoteChanged && localChanged) {
+    pendingConflict = { remoteState, remoteModified };
+    document.getElementById('conflictLocalSummary').textContent = summarizeState(state);
+    document.getElementById('conflictRemoteSummary').textContent = summarizeState(remoteState);
+    openModal('conflict');
+    return 'conflict';
+  }
+  if (remoteChanged) {
+    if (isValidStateShape(remoteState)) state = remoteState; else console.warn('Remote state failed validation, keeping local copy');
+    state.meta = state.meta || {};
+    state.meta.lastSyncTimestamp = remoteModified;
+    saveState();
+    return 'pulled';
+  }
+  await uploadState();
+  return 'pushed';
+}
+
+async function uploadState() {
+  if (!driveFileId) throw new Error('No file ID');
+  const newModified = await updateStateFile(driveFileId, state);
+  state.meta = state.meta || {};
+  state.meta.lastSyncTimestamp = new Date(newModified).getTime();
+  saveState();
+}
+
+async function resolveConflict(choice) {
+  if (!pendingConflict) { closeModal('conflict'); return; }
+  if (choice === 'local') {
+    await uploadState();
+    showToast("Kept this device's version. Drive overwritten.");
+  } else if (choice === 'remote') {
+    if (isValidStateShape(pendingConflict.remoteState)) state = pendingConflict.remoteState;
+    state.meta = state.meta || {};
+    state.meta.lastSyncTimestamp = pendingConflict.remoteModified;
+    saveState();
+    showToast("Kept Drive's version.");
+  } else if (choice === 'export') {
+    exportData();
+    const blob = new Blob([JSON.stringify(pendingConflict.remoteState, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'tomos-astra-drive-version-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    showToast('Exported both versions. Sync left unresolved — try again when ready.');
+    pendingConflict = null;
+    closeModal('conflict');
+    return;
+  }
+  pendingConflict = null;
+  closeModal('conflict');
+  renderDashboard();
+}
+
+async function syncNow() {
+  try {
+    if (!accessToken || Date.now() >= tokenExpiry) { showToast('Connect your Google account first.'); handleAuthClick(); return; }
+    document.getElementById('syncStatus').textContent = 'Syncing...';
+    document.getElementById('syncIndicator').style.background = '#d4a373';
+    const result = await syncFromDrive();
+    if (result === 'conflict') { document.getElementById('syncStatus').textContent = 'Conflict'; return; }
+    renderDashboard();
+    document.getElementById('syncStatus').textContent = 'Synced';
+    document.getElementById('syncIndicator').style.background = 'var(--primary)';
+  } catch (e) {
+    console.error(e);
+    document.getElementById('syncStatus').textContent = 'Error';
+    document.getElementById('syncIndicator').style.background = '#888';
+    showToast('Sync failed: ' + e.message);
+  }
+}
+
+/* ==========================================================================
+   EXPORT / IMPORT — import now validates shape + version before accepting
+   ========================================================================== */
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tomos-astra-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+}
+
+function importData() {
+  const fileInput = document.getElementById('restoreFile');
+  fileInput.value = '';
+  fileInput.click();
+  fileInput.onchange = () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try { parsed = JSON.parse(reader.result); } catch { showToast('That file is not valid JSON.'); return; }
+      if (!isValidStateShape(parsed)) { showToast('That file does not look like a TomOS Astra export — restore cancelled.'); return; }
+      if (!confirm('Restore will replace all current data on this device with the contents of this file. Continue?')) return;
+      state = parsed.version === SCHEMA_VERSION ? parsed : migrateState(parsed);
+      saveState();
+      renderDashboard();
+      showToast('Data restored from file.');
+      if (accessToken && deviceMode === 'trusted') uploadState();
+    };
+    reader.readAsText(file);
+  };
+}
+
+/* ==========================================================================
+   INITIALIZATION
+   ========================================================================== */
+(async function init() {
+  populateContextSelect();
+  const savedToken = storageGet('tomos.token');
+  const savedExpiry = storageGet('tomos.token_expiry');
+  if (savedToken && savedExpiry && Date.now() < parseInt(savedExpiry)) {
+    accessToken = savedToken;
+    tokenExpiry = parseInt(savedExpiry);
+    updateAuthUI(true);
+    driveFolderId = storageGet('tomos.driveFolderId');
+    driveFileId = storageGet('tomos.driveFileId');
+    try {
+      const result = await syncFromDrive();
+      if (result !== 'conflict') { document.getElementById('syncStatus').textContent = 'Synced'; document.getElementById('syncIndicator').style.background = 'var(--primary)'; }
+    } catch (e) { console.warn('Initial sync failed (offline?)', e); }
+  } else {
+    updateAuthUI(false);
+  }
+  updateDeviceModeUI();
+  buildNav();
+  navigateTo('command');
+  updateProjectDatalist();
+  // Check for OAuth redirect
+  if (window.location.search.includes('code=')) {
+    const success = await exchangeCodeForToken();
+    if (success) {
+      try { await syncFromDrive(); } catch (e) { console.warn(e); }
+      renderDashboard();
+    }
+  }
+  // Clock and cycle tick
+  setInterval(() => {
+    if (activeView === 'command') updateDashboardData();
+    const cycleEl = document.getElementById('cycle');
+    if (cycleEl) cycleEl.textContent = computeCycleDay();
+  }, 60000);
+  const tick = () => {
+    const c = document.getElementById('clock');
+    if (c) c.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+  tick();
+  setInterval(tick, 1000);
+})();
+
+// ---------- MODALS & NAV ----------
+function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
+function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
+function toggleNav(force) {
+  document.getElementById('side').classList.toggle('open', force ?? !document.getElementById('side').classList.contains('open'));
+}
+document.getElementById('duration').addEventListener('click', e => {
+  const b = e.target.closest('button[data-min]');
+  if (!b) return;
+  document.querySelectorAll('#duration .btn').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal('focus'); closeModal('task'); closeModal('cycle'); closeModal('project'); }
+});
+</script>
+</body>
+</html>
