@@ -1435,69 +1435,53 @@ function removeOverride(date) {
 }
 
 /* ==========================================================================
-   GOOGLE OAUTH (PKCE) — now with a real, validated `state` parameter
+   GOOGLE OAUTH — Token Client (Google Identity Services)
+   --------------------------------------------------------------------------
+   Why this instead of Authorization Code + PKCE:
+   Google treats any Client ID registered as "Web application" as a
+   CONFIDENTIAL client. Its /token endpoint demands client_secret on every
+   authorization_code exchange, even when code_verifier/PKCE is present —
+   there is no backend here to keep that secret, so that flow can never
+   complete for a static GitHub Pages app (hence "400: client_secret is
+   missing"). TomOS never used the refresh_token the code flow would have
+   produced anyway (see persistToken/handleAuthClick below — we just
+   re-prompt the user when the token expires), so the Token Client is the
+   correct, Google-recommended model for this exact use case: it hands back
+   an access_token straight to this page via a JS callback, no redirect
+   round-trip, no authorization code, no client_secret, ever.
    ========================================================================== */
-function randomToken(bytes = 24) {
-  const array = new Uint8Array(bytes);
-  crypto.getRandomValues(array);
-  return Array.from(array, b => ('0' + b.toString(16)).slice(-2)).join('');
-}
-function generateCodeVerifier() { return randomToken(56); }
-async function generateCodeChallenge(verifier) {
-  const encoder = new TextEncoder();
-  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(verifier));
-  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+let tokenClient = null;
 
-async function handleAuthClick() {
-  if (accessToken && Date.now() < tokenExpiry) { syncNow(); return; }
-  if (typeof google === 'undefined' || !google.accounts) { showToast('Google sign-in script failed to load — check your connection and reload.'); return; }
-  const verifier = generateCodeVerifier();
-  const challenge = await generateCodeChallenge(verifier);
-  const oauthState = randomToken(16);
-  sessionStorage.setItem('oauth_verifier', verifier);
-  sessionStorage.setItem('oauth_state', oauthState);
-  const client = google.accounts.oauth2.initCodeClient({
+function getTokenClient() {
+  if (tokenClient) return tokenClient;
+  tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/drive.file',
-    ux_mode: 'redirect',
-    redirect_uri: 'https://thomasthethird13.github.io/TomOS/',
-    state: oauthState,
-    code_challenge: challenge,
-    code_challenge_method: 'S256',
+    callback: async (response) => {
+      if (response.error) {
+        showToast('Sign-in failed: ' + response.error);
+        return;
+      }
+      accessToken = response.access_token;
+      tokenExpiry = Date.now() + (response.expires_in - 60) * 1000;
+      persistToken();
+      updateAuthUI(true);
+      try {
+        const result = await syncFromDrive();
+        if (result !== 'conflict') { document.getElementById('syncStatus').textContent = 'Synced'; document.getElementById('syncIndicator').style.background = 'var(--primary)'; }
+        renderDashboard();
+      } catch (e) { console.warn('Sync after sign-in failed', e); }
+    },
   });
-  client.requestCode();
+  return tokenClient;
 }
 
-async function exchangeCodeForToken() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-  const returnedState = params.get('state');
-  if (!code) return false;
-  const verifier = sessionStorage.getItem('oauth_verifier');
-  const expectedState = sessionStorage.getItem('oauth_state');
-  window.history.replaceState({}, document.title, window.location.pathname);
-  if (!verifier || !expectedState || returnedState !== expectedState) {
-    sessionStorage.removeItem('oauth_verifier'); sessionStorage.removeItem('oauth_state');
-    showToast('Sign-in could not be verified (state mismatch). Please try connecting again.');
-    return false;
-  }
-  const body = new URLSearchParams({
-    client_id: CLIENT_ID, code, grant_type: 'authorization_code',
-    redirect_uri: 'https://thomasthethird13.github.io/astra', code_verifier: verifier,
-  });
-  let resp;
-  try {
-    resp = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
-  } catch (e) { showToast('Network error while signing in.'); return false; }
-  sessionStorage.removeItem('oauth_verifier'); sessionStorage.removeItem('oauth_state');
-  if (!resp.ok) { showToast('Sign-in failed.'); return false; }
-  const data = await resp.json();
-  accessToken = data.access_token;
-  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  persistToken();
-  updateAuthUI(true);
-  return true;
+function handleAuthClick() {
+  if (accessToken && Date.now() < tokenExpiry) { syncNow(); return; }
+  if (typeof google === 'undefined' || !google.accounts) { showToast('Google sign-in script failed to load — check your connection and reload.'); return; }
+  // Empty prompt lets Google skip the consent screen on repeat sign-ins for
+  // a user who already granted this scope; first-time users still see it.
+  getTokenClient().requestAccessToken({ prompt: accessToken ? '' : 'consent' });
 }
 
 // Fixed: previously accessToken/tokenExpiry were only ever kept in memory —
@@ -1727,14 +1711,6 @@ function importData() {
   buildNav();
   navigateTo('command');
   updateProjectDatalist();
-  // Check for OAuth redirect
-  if (window.location.search.includes('code=')) {
-    const success = await exchangeCodeForToken();
-    if (success) {
-      try { await syncFromDrive(); } catch (e) { console.warn(e); }
-      renderDashboard();
-    }
-  }
   // Clock and cycle tick
   setInterval(() => {
     if (activeView === 'command') updateDashboardData();
