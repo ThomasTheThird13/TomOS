@@ -4,9 +4,23 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0b0c" />
+  <meta name="theme-color" content="#f7f5f1" />
   <title>TomOS Astra · Command Bridge</title>
   <meta name="description" content="Cycle-aware scheduling, deep-work telemetry, and strategic project control in one personal operating system." />
+  <script>
+    /* Theme applied before first paint — avoids a flash of the wrong theme.
+       Preference lives in plain localStorage (not the ephemeral/trusted split
+       used for app data) because it's a display setting, not user data. */
+    (function(){
+      try{
+        var t = localStorage.getItem('tomos.theme');
+        if (t !== 'dark' && t !== 'light') {
+          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch(e) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
@@ -19,25 +33,44 @@
        refined to the level the brief actually asks for.
        ======================================================================== */
     :root{
-      --bg:#f4f1ec; --fg:#0d0d0e; --muted:#6b6660; --muted-2:#9a9388;
-      --border:#1f1d1c1a; --border-2:#1f1d1c2e; --card:#fbfaf7;
-      --primary:#b3261e; --primary-2:#7a1a14; --primary-soft:#b3261e14;
-      --ink:#161413; --accent:#efe9df;
-      --shadow-1:0 1px 2px rgba(13,13,14,.04), 0 1px 1px rgba(13,13,14,.03);
-      --shadow-2:0 8px 24px rgba(13,13,14,.07), 0 2px 6px rgba(13,13,14,.05);
-      --shadow-3:0 24px 60px rgba(13,13,14,.16), 0 6px 16px rgba(13,13,14,.08);
+      /* ---- LIGHT — "Carrara marble, arterial red" (default) ---- */
+      --bg:#f7f5f1; --fg:#0a0a0a; --muted:#645f59; --muted-2:#948c81;
+      --border:#1a18171f; --border-2:#1a181733; --card:#fffdf9;
+      --primary:#8a0f08; --primary-2:#5c0a05; --primary-soft:#8a0f0814;
+      --ink:#100f0e; --ink-fg:#f7f5f1; --ink-fg-soft:#f7f5f18f;
+      --accent:#f3e7e2; --input-bg:#ffffff;
+      --header-bg:rgba(247,245,241,.94);
+      --mix-rgb:10,10,10; --bg-rgb:247,245,241;
+      --shadow-1:0 1px 2px rgba(10,10,10,.05), 0 1px 1px rgba(10,10,10,.03);
+      --shadow-2:0 8px 24px rgba(10,10,10,.08), 0 2px 6px rgba(10,10,10,.05);
+      --shadow-3:0 24px 60px rgba(10,10,10,.18), 0 6px 16px rgba(10,10,10,.09);
       --ease:cubic-bezier(.2,.7,.2,1);
       --r:1px; /* radius kept at instrument-panel zero/near-zero, see note below */
     }
+    :root[data-theme="dark"]{
+      /* ---- DARK — "black marble, arterial red" ---- */
+      --bg:#0a0908; --fg:#f2efe9; --muted:#9a9186; --muted-2:#6f685f;
+      --border:#ffffff14; --border-2:#ffffff26; --card:#141312;
+      --primary:#db2f22; --primary-2:#ff5b46; --primary-soft:#db2f2220;
+      --ink:#1d1a18; --ink-fg:#f2efe9; --ink-fg-soft:#f2efe98f;
+      --accent:#2a1310; --input-bg:#1d1a18;
+      --header-bg:rgba(10,9,8,.88);
+      --mix-rgb:255,255,255; --bg-rgb:10,9,8;
+      --shadow-1:0 1px 2px rgba(0,0,0,.5), 0 1px 1px rgba(0,0,0,.35);
+      --shadow-2:0 10px 28px rgba(0,0,0,.55), 0 3px 8px rgba(0,0,0,.4);
+      --shadow-3:0 26px 64px rgba(0,0,0,.65), 0 8px 18px rgba(0,0,0,.45);
+    }
+    html{transition:background-color .25s var(--ease)}
+    body,.app,aside,.panel,header.top,.modal .box{transition:background-color .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease)}
     *{box-sizing:border-box}
     *:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
     body{
       min-height:100vh;
       background-image:
-        radial-gradient(ellipse 900px 500px at 12% -10%, #00000006, transparent 60%),
-        radial-gradient(ellipse 700px 480px at 100% 0%, #00000005, transparent 55%),
-        radial-gradient(ellipse 1100px 700px at 50% 120%, #00000005, transparent 60%);
+        radial-gradient(ellipse 900px 500px at 12% -10%, rgba(var(--mix-rgb),.024), transparent 60%),
+        radial-gradient(ellipse 700px 480px at 100% 0%, rgba(var(--mix-rgb),.02), transparent 55%),
+        radial-gradient(ellipse 1100px 700px at 50% 120%, rgba(var(--mix-rgb),.02), transparent 60%);
       background-attachment:fixed;
     }
     a{color:inherit;text-decoration:none}
@@ -48,14 +81,14 @@
     .hairline{font-family:"DM Mono",monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.22em;color:var(--muted)}
     .grid-bg{
       background-image:
-        linear-gradient(to right, #00000006 1px, transparent 1px),
-        linear-gradient(to bottom, #00000006 1px, transparent 1px);
+        linear-gradient(to right, rgba(var(--mix-rgb),.024) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(var(--mix-rgb),.024) 1px, transparent 1px);
       background-size:48px 48px;
     }
     ::-webkit-scrollbar{width:9px;height:9px}
     ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:#0d0d0e22;border-radius:99px}
-    ::-webkit-scrollbar-thumb:hover{background:#0d0d0e3a}
+    ::-webkit-scrollbar-thumb{background:rgba(var(--mix-rgb),.13);border-radius:99px}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(var(--mix-rgb),.23)}
 
     .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
     aside{position:sticky;top:0;height:100vh;border-right:1px solid var(--border);background:var(--card);display:flex;flex-direction:column;z-index:40}
@@ -64,13 +97,13 @@
     .brand h1 em{color:var(--primary);font-style:normal}
     nav.side{padding:10px;display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
     nav.side button{display:flex;align-items:center;gap:10px;padding:11px 12px;border-left:2px solid transparent;text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;transition:.18s var(--ease)}
-    nav.side button:hover{background:#0000000a;color:var(--fg)}
+    nav.side button:hover{background:rgba(var(--mix-rgb),.04);color:var(--fg)}
     nav.side button.active{border-color:var(--primary);background:var(--accent);color:var(--primary)}
     .side-foot{border-top:1px solid var(--border);padding:14px;font-size:11px;color:var(--muted)}
     .side-foot .dot{display:inline-block;width:6px;height:6px;background:var(--primary);border-radius:99px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 3px var(--primary-soft)}
     .side-foot .dot.idle{background:var(--muted-2);box-shadow:none}
 
-    header.top{position:sticky;top:0;height:60px;background:#f4f1ecf2;backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;z-index:30;gap:14px}
+    header.top{position:sticky;top:0;height:60px;background:var(--header-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;z-index:30;gap:14px}
     header.top .status{display:flex;align-items:center;gap:8px}
     header.top .right{margin-left:auto;display:flex;align-items:center;gap:14px}
     .ctx-select{position:relative}
@@ -83,8 +116,8 @@
     .ctx-select::after{content:"▾";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--muted);pointer-events:none}
 
     .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--border);background:transparent;font-size:12px;font-weight:600;letter-spacing:.03em;transition:.16s var(--ease)}
-    .btn:hover{background:#0000000a;border-color:var(--border-2)}
-    .btn.primary{background:var(--ink);color:#f4f1ec;border-color:var(--ink)}
+    .btn:hover{background:rgba(var(--mix-rgb),.04);border-color:var(--border-2)}
+    .btn.primary{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
     .btn.primary:hover{background:var(--primary);border-color:var(--primary)}
     .btn.danger:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
     .btn.sm{padding:6px 10px;font-size:11px}
@@ -94,7 +127,7 @@
     .menu-toggle{display:none}
 
     main{padding:28px 32px 80px;max-width:1500px;margin:0 auto;width:100%}
-    .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:26px;border-bottom:1px solid #0d0d0e22;margin-bottom:26px;flex-wrap:wrap}
+    .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:26px;border-bottom:1px solid rgba(var(--mix-rgb),.13);margin-bottom:26px;flex-wrap:wrap}
     .hero h2{font-family:"Playfair Display",serif;font-size:44px;line-height:1.05;margin:8px 0 12px;font-weight:600;letter-spacing:-.01em;max-width:680px}
     .hero .greet-row{display:flex;align-items:flex-start;gap:10px}
     .greet-refresh{opacity:.35;font-size:13px;margin-top:14px;transition:.2s var(--ease)}
@@ -108,9 +141,9 @@
     .panel header h3{margin:4px 0 0;font-family:"Playfair Display",serif;font-size:21px;font-weight:600}
     .row{display:grid;grid-template-columns:64px 4px 1fr auto;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);transition:.18s var(--ease)}
     .row:last-child{border-bottom:0}
-    .row:hover{background:#00000007;transform:translateX(3px)}
+    .row:hover{background:rgba(var(--mix-rgb),.03);transform:translateX(3px)}
     .row .tm{font-family:"DM Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted)}
-    .row .bar{background:#0d0d0e22}
+    .row .bar{background:rgba(var(--mix-rgb),.13)}
     .row .bar.p{background:var(--primary)}
     .row .bar.d{background:var(--ink)}
     .row .title{font-size:14px;font-weight:600}
@@ -118,15 +151,15 @@
     .row .del{opacity:0;transition:.15s}
     .row:hover .del{opacity:.5}
     .row .del:hover{opacity:1;color:var(--primary)}
-    .telemetry{background:var(--ink);color:#f4f1ec;padding:22px;border:1px solid var(--ink);box-shadow:var(--shadow-2);position:relative;overflow:hidden}
+    .telemetry{background:var(--ink);color:var(--ink-fg);padding:22px;border:1px solid var(--ink);box-shadow:var(--shadow-2);position:relative;overflow:hidden}
     .telemetry::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,#ffffff08,transparent 40%);pointer-events:none}
     .telemetry .big{font-family:"Playfair Display",serif;font-size:52px;line-height:1;font-weight:600}
-    .telemetry .lbl{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#f4f1ec90}
+    .telemetry .lbl{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-fg-soft)}
     .chart{height:130px;margin:18px 0 12px}
     .telemetry .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid #ffffff1c;padding-top:14px;text-align:center}
     .telemetry .grid3 .v{font-family:"DM Mono",monospace;font-size:14px}
     .task{display:flex;gap:14px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);transition:.15s var(--ease)}
-    .task:hover{background:#00000006}
+    .task:hover{background:rgba(var(--mix-rgb),.024)}
     .task:last-child{border-bottom:0}
     .chk{width:18px;height:18px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s var(--ease)}
     .chk:hover{border-color:var(--primary)}
@@ -136,21 +169,21 @@
     .pri{font-family:"DM Mono",monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
     .pri.crit{color:var(--primary)}
     .rail{display:flex;flex-direction:column;gap:18px}
-    .progress{height:4px;background:#00000010;margin-top:14px;overflow:hidden}
+    .progress{height:4px;background:rgba(var(--mix-rgb),.06);margin-top:14px;overflow:hidden}
     .progress span{display:block;height:100%;background:var(--primary);transition:width .4s var(--ease)}
     .modal{position:fixed;inset:0;background:#0d0d0eb3;backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;padding:16px;z-index:90;animation:f .2s ease}
     .modal.open{display:flex}
     .modal .box{width:100%;max-width:520px;background:var(--card);border:1px solid var(--border);padding:26px;animation:s .25s var(--ease);box-shadow:var(--shadow-3)}
     .modal h4{font-family:"Playfair Display",serif;font-size:27px;margin:6px 0 0;font-weight:600}
     .modal label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-top:18px}
-    .modal input,.modal select,.modal textarea{width:100%;padding:11px 12px;border:1px solid var(--border);background:#fff;margin-top:8px;font:inherit;font-size:13px;transition:.15s var(--ease)}
+    .modal input,.modal select,.modal textarea{width:100%;padding:11px 12px;border:1px solid var(--border);background:var(--input-bg);margin-top:8px;font:inherit;font-size:13px;transition:.15s var(--ease)}
     .modal input:focus,.modal select:focus,.modal textarea:focus{border-color:var(--primary);outline:none}
     .modal textarea{min-height:96px;resize:vertical}
     .modal .close-x{font-size:20px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;transition:.15s var(--ease)}
     .modal .close-x:hover{color:var(--primary);transform:rotate(90deg)}
     .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
     .seg .btn{justify-content:center}
-    .seg .btn.on{background:var(--ink);color:#f4f1ec;border-color:var(--ink)}
+    .seg .btn.on{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
     @keyframes f{from{opacity:0}to{opacity:1}}
     @keyframes s{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
     svg.spark{width:100%;height:100%;display:block;color:var(--primary)}
@@ -158,31 +191,31 @@
     .conflict-diff .side{border:1px solid var(--border);padding:12px;font-size:12px}
     .conflict-diff .side b{display:block;font-family:"DM Mono",monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-bottom:8px}
     .schedule-add{display:flex;gap:6px;padding:12px 20px;border-top:1px solid var(--border);flex-wrap:wrap}
-    .schedule-add input{flex:1;min-width:90px;padding:8px 9px;border:1px solid var(--border);font:inherit;font-size:12px;background:#fff}
+    .schedule-add input{flex:1;min-width:90px;padding:8px 9px;border:1px solid var(--border);font:inherit;font-size:12px;background:var(--input-bg)}
     .toast-wrap{position:fixed;bottom:22px;right:22px;display:flex;flex-direction:column;gap:8px;z-index:99}
-    .toast{background:var(--ink);color:#f4f1ec;padding:13px 18px;font-size:12.5px;box-shadow:var(--shadow-3);max-width:320px;animation:s .22s var(--ease);border-left:3px solid var(--primary)}
+    .toast{background:var(--ink);color:var(--ink-fg);padding:13px 18px;font-size:12.5px;box-shadow:var(--shadow-3);max-width:320px;animation:s .22s var(--ease);border-left:3px solid var(--primary)}
     /* Timetable */
     .ttable-wrap{overflow:auto}
     table.ttable{width:100%;border-collapse:collapse;font-size:12.5px}
-    table.ttable th{background:var(--ink);color:#f4f1ec;font-weight:600;text-align:center;padding:11px 10px;font-size:12.5px;white-space:nowrap}
+    table.ttable th{background:var(--ink);color:var(--ink-fg);font-weight:600;text-align:center;padding:11px 10px;font-size:12.5px;white-space:nowrap}
     table.ttable th:first-child{text-align:left}
     table.ttable td{border-bottom:1px solid var(--border);padding:11px 12px;text-align:center;vertical-align:middle}
-    table.ttable td:first-child{font-family:"DM Mono",monospace;font-size:10.5px;color:var(--muted);text-align:left;white-space:nowrap;background:#0000000a}
-    table.ttable tr.break td:not(:first-child){background:#1f1d1c;color:#f4f1ec90;font-style:italic}
+    table.ttable td:first-child{font-family:"DM Mono",monospace;font-size:10.5px;color:var(--muted);text-align:left;white-space:nowrap;background:rgba(var(--mix-rgb),.04)}
+    table.ttable tr.break td:not(:first-child){background:var(--ink);color:var(--ink-fg-soft);font-style:italic}
     table.ttable tr.lunch td:not(:first-child){background:var(--accent)}
-    table.ttable td input{width:100%;border:1px solid var(--border);padding:6px 7px;font:inherit;font-size:12px;background:#fff;text-align:center}
-    table.ttable tr.break td input,table.ttable tr.lunch td input{background:#fff;color:var(--fg);font-style:normal}
+    table.ttable td input{width:100%;border:1px solid var(--border);padding:6px 7px;font:inherit;font-size:12px;background:var(--input-bg);text-align:center}
+    table.ttable tr.break td input,table.ttable tr.lunch td input{background:var(--input-bg);color:var(--fg);font-style:normal}
     table.ttable td .ttable-del{display:block;margin-top:6px;opacity:.5;font-size:10px}
     table.ttable td .ttable-del:hover{opacity:1;color:var(--primary)}
     .ttable-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:18px 20px;border-top:1px solid var(--border)}
-    .ttable-note{border:1px solid var(--border);padding:10px 12px;font-size:11.5px;line-height:1.5;background:#fff;position:relative}
+    .ttable-note{border:1px solid var(--border);padding:10px 12px;font-size:11.5px;line-height:1.5;background:var(--input-bg);position:relative}
     .ttable-note input{width:100%;border:0;font:inherit;font-size:11.5px;background:transparent;padding:0}
     .ttable-note .ttable-del{position:absolute;top:6px;right:8px}
     /* Focus active timer */
-    .focus-bar{position:sticky;top:60px;background:var(--ink);color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:25;margin-bottom:0;display:none}
+    .focus-bar{position:sticky;top:60px;background:var(--ink);color:var(--ink-fg);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:25;margin-bottom:0;display:none}
     .focus-bar.active{display:flex}
     .focus-bar .timer{font-family:"DM Mono",monospace;font-size:24px;font-variant-numeric:tabular-nums}
-    .focus-bar .actions button{color:#fff;border-color:#fff;margin-left:10px}
+    .focus-bar .actions button{color:var(--ink-fg);border-color:var(--ink-fg);margin-left:10px}
     @media (max-width:900px){
       .app{grid-template-columns:1fr}
       aside{position:fixed;left:0;top:0;width:240px;transform:translateX(-100%);transition:.25s var(--ease)}
@@ -227,6 +260,7 @@
           <select id="contextSelect" onchange="setContext(this.value)" aria-label="Operating context" title="Operating context — drives which greeting register is eligible"></select>
         </div>
         <span class="hairline" id="cycle">Cycle Day 3</span>
+        <button class="btn sm ghost" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle light / dark theme" title="Toggle theme">☾</button>
         <button class="btn sm" id="authButton" onclick="handleAuthClick()">◎ Google sync</button>
         <button class="btn sm ghost" id="signOutButton" onclick="signOut()" style="display:none">Disconnect</button>
       </div>
@@ -371,6 +405,31 @@ let accessToken = null, tokenExpiry = 0, driveFolderId = null, driveFileId = nul
 let activeView = 'command';
 let activeFocusSession = null; // { id, start, subject, targetMinutes, interruptions, elapsed, paused, timerInterval }
 let focusTimerInterval = null;
+
+// ---------- THEME (light / dark) ----------
+// Preference is plain localStorage, independent of public/trusted device
+// mode — it's a display setting, not personal data, so it shouldn't be
+// wiped when a public-device session ends.
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.textContent = theme === 'dark' ? '☀' : '☾';
+    btn.title = theme === 'dark' ? 'Switch to light marble' : 'Switch to dark marble';
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0908' : '#f7f5f1');
+  const label = document.getElementById('themeLabel');
+  if (label) label.textContent = theme === 'dark' ? 'Dark — black marble' : 'Light — Carrara marble';
+}
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+function toggleTheme() {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem('tomos.theme', next); } catch (e) { console.warn('Could not persist theme preference', e); }
+  applyTheme(next);
+}
 
 // ---------- STORAGE ABSTRACTION ----------
 // Trusted devices persist to localStorage (survives closing the browser).
@@ -1321,6 +1380,10 @@ function renderSettingsView() {
         <div><input type="checkbox" id="modAnalytics" ${state.modules.analytics ? 'checked' : ''} onchange="toggleModule('analytics', this.checked)"> Analytics</div>
       </div>
       <hr style="border-color:var(--border);margin:22px 0"/>
+      <div class="hairline">Appearance</div>
+      <p style="font-size:12px;color:var(--muted);margin:8px 0 0" id="themeLabel"></p>
+      <button class="btn sm" style="margin-top:8px" onclick="toggleTheme()">Toggle light / dark marble</button>
+      <hr style="border-color:var(--border);margin:22px 0"/>
       <div class="hairline">Operating context</div>
       <p style="font-size:12px;color:var(--muted);margin:8px 0 0">Drives which greeting register is eligible on the Command bridge. Quick-switch from the top bar at any time — this just mirrors that choice.</p>
       <select id="setContext" style="margin-top:8px" onchange="setContext(this.value)"></select>
@@ -1331,6 +1394,7 @@ function renderSettingsView() {
   populateContextSelect();
   const setContextSel = document.getElementById('setContext');
   if (setContextSel) setContextSel.innerHTML = document.getElementById('contextSelect').innerHTML;
+  applyTheme(currentTheme());
 }
 
 function toggleModule(module, enabled) {
@@ -1691,6 +1755,7 @@ function importData() {
    INITIALIZATION
    ========================================================================== */
 (async function init() {
+  applyTheme(currentTheme());
   populateContextSelect();
   const savedToken = storageGet('tomos.token');
   const savedExpiry = storageGet('tomos.token_expiry');
